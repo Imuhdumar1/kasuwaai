@@ -1,0 +1,69 @@
+"use server";
+
+import { revalidatePath } from "next/cache";
+import { createClient, getBusiness } from "@/lib/supabase/server";
+
+export type ActionResult = { ok?: true; error?: string };
+
+export type PaymentInput = {
+  sale_id: string;
+  amount: number;
+  method: string | null;
+  reference_number: string | null;
+  payment_date: string | null;
+  notes: string | null;
+};
+
+const round = (n: number) => Math.round((Number(n) + Number.EPSILON) * 100) / 100;
+
+export async function recordPayment(input: PaymentInput): Promise<ActionResult> {
+  const business = await getBusiness();
+  if (!business) return { error: "Not authenticated" };
+  const supabase = createClient();
+
+  const { data: sale } = await supabase
+    .from("sales")
+    .select("id, outstanding_balance, customer_id")
+    .eq("id", input.sale_id)
+    .eq("business_id", business.id)
+    .single();
+  if (!sale) return { error: "Sale not found" };
+
+  const amount = round(input.amount);
+  if (!(amount > 0)) return { error: "Enter a payment amount." };
+  if (amount > sale.outstanding_balance + 0.005) {
+    return { error: "Payment cannot be more than the outstanding balance." };
+  }
+
+  const { error } = await supabase.from("payments").insert({
+    business_id: business.id,
+    sale_id: sale.id,
+    customer_id: sale.customer_id,
+    amount,
+    method: input.method || "Cash",
+    reference_number: input.reference_number,
+    payment_date: input.payment_date || new Date().toISOString(),
+    notes: input.notes,
+  });
+  if (error) return { error: error.message };
+
+  revalidatePath("/debts");
+  revalidatePath("/payments");
+  revalidatePath("/dashboard");
+  revalidatePath("/sales");
+  revalidatePath(`/sales/${sale.id}`);
+  if (sale.customer_id) revalidatePath(`/customers/${sale.customer_id}`);
+  return { ok: true };
+}
+
+export async function deletePayment(id: string): Promise<ActionResult> {
+  const business = await getBusiness();
+  if (!business) return { error: "Not authenticated" };
+  const supabase = createClient();
+  const { error } = await supabase.from("payments").delete().eq("id", id).eq("business_id", business.id);
+  if (error) return { error: error.message };
+  revalidatePath("/payments");
+  revalidatePath("/debts");
+  revalidatePath("/dashboard");
+  return { ok: true };
+}

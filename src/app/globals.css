@@ -1,0 +1,63 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ─── KasuwaAI design tokens (Relay-branded, clean dashboard) ─────────── */
+:root {
+  --bg: #f5f2eb;          /* warm cream app canvas   */
+  --surface: #ffffff;     /* crisp cards for data    */
+  --surface-2: #ede9de;   /* subtle secondary panels */
+  --line: rgba(10, 10, 10, 0.10);
+  --content: #0a0a0a;
+  --content-muted: #6b6560;
+  --ring: #c8f23a;
+}
+
+.dark {
+  --bg: #0f0e0c;
+  --surface: #1a1815;
+  --surface-2: #232019;
+  --line: rgba(245, 242, 235, 0.10);
+  --content: #f5f2eb;
+  --content-muted: #a8a29a;
+  --ring: #c8f23a;
+}
+
+* {
+  border-color: var(--line);
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background: var(--bg);
+  color: var(--content);
+  font-family: "DM Sans", system-ui, sans-serif;
+  font-size: 15px;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
+}
+
+h1, h2, h3, h4, h5, .font-display {
+  font-family: "Syne", "DM Sans", sans-serif;
+  letter-spacing: -0.02em;
+}
+
+::selection { background: #c8f23a; color: #0a0a0a; }
+
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--line); border-radius: 8px; border: 3px solid var(--bg); }
+::-webkit-scrollbar-thumb:hover { background: var(--content-muted); }
+
+/* Hide number-input spinners for money fields */
+input[type="number"].no-spin::-webkit-outer-spin-button,
+input[type="number"].no-spin::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+input[type="number"].no-spin { -moz-appearance: textfield; }
+
+@layer utilities {
+  .text-balance { text-wrap: balance; }
+}
