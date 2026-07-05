@@ -1,27 +1,29 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Mic, Square, Pause, Play, RotateCcw, Trash2, Sparkles, ArrowLeft } from "lucide-react";
+import { Mic, Square, RotateCcw, Trash2, Sparkles, ArrowLeft } from "lucide-react";
 import { Button, Card, Textarea, Badge, Select } from "@/components/ui";
 import { PageHeader } from "@/components/page-header";
 import { SaleForm, type CustomerLite, type ProductLite, type SaleInitial } from "@/components/sales/sale-form";
 import { useI18n } from "@/components/providers";
 import { parseTransaction, type ParsedSale } from "@/lib/voice/parse";
 
-type RecState = "idle" | "recording" | "paused" | "recorded";
+type RecState = "idle" | "recording" | "recorded";
+type RecMode = "mixed" | "english" | "hausa";
 
 /* ─── Minimal Web Speech API typings (not in the standard lib) ─────────── */
 type SRAlternative = { transcript: string };
 type SRResult = { isFinal: boolean; readonly length: number; [i: number]: SRAlternative };
 type SRResultList = { readonly length: number; [i: number]: SRResult };
 type SREvent = { resultIndex: number; results: SRResultList };
+type SRErrorEvent = { error: string };
 interface SpeechRec {
   lang: string;
   continuous: boolean;
   interimResults: boolean;
   onresult: ((e: SREvent) => void) | null;
   onend: (() => void) | null;
-  onerror: ((e: unknown) => void) | null;
+  onerror: ((e: SRErrorEvent) => void) | null;
   start: () => void;
   stop: () => void;
   abort: () => void;
@@ -33,6 +35,11 @@ function getSpeechRecognition(): SRConstructor | null {
   const w = window as unknown as { SpeechRecognition?: SRConstructor; webkitSpeechRecognition?: SRConstructor };
   return w.SpeechRecognition ?? w.webkitSpeechRecognition ?? null;
 }
+
+// Mixed and English both use a broadly-supported English recognizer (it handles
+// English well and approximates Hausa words, which the user then corrects).
+// Hausa tries a Hausa recognizer, falling back to English if unsupported.
+const RECOG_LANG: Record<RecMode, string> = { mixed: "en-NG", english: "en-US", hausa: "ha-NG" };
 
 const EXAMPLES = [
   "Three bags of rice sold to Haruna for one hundred and eighty thousand naira. He paid one hundred thousand.",
@@ -55,7 +62,7 @@ export function VoiceSale({
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
   const [transcript, setTranscript] = useState("");
   const [interim, setInterim] = useState("");
-  const [recLang, setRecLang] = useState("en-NG");
+  const [recMode, setRecMode] = useState<RecMode>("mixed");
   const [parsed, setParsed] = useState<ParsedSale | null>(null);
   const [recError, setRecError] = useState<string | null>(null);
 
@@ -82,14 +89,15 @@ export function VoiceSale({
 
   function startSpeech() {
     const SR = getSpeechRecognition();
-    if (!SR) return;
+    if (!SR) return false;
     const recog = new SR();
-    recog.lang = recLang;
+    recog.lang = RECOG_LANG[recMode];
     recog.continuous = true;
     recog.interimResults = true;
     finalRef.current = "";
     userStopRef.current = false;
     activeRef.current = true;
+
     recog.onresult = (e) => {
       let live = "";
       for (let i = e.resultIndex; i < e.results.length; i++) {
@@ -101,7 +109,7 @@ export function VoiceSale({
       setInterim(live);
     };
     recog.onend = () => {
-      // Chrome ends on silence — restart while the user is still recording.
+      // Mobile browsers (esp. iOS) stop after each phrase — restart while active.
       if (activeRef.current && !userStopRef.current) {
         try {
           recog.start();
@@ -114,76 +122,75 @@ export function VoiceSale({
       const finalText = finalRef.current.trim();
       if (finalText) setTranscript(finalText);
     };
-    recog.onerror = () => {
-      /* keep the audio recording going; the user can still type */
+    recog.onerror = (e) => {
+      if (e.error === "not-allowed" || e.error === "service-not-allowed") {
+        activeRef.current = false;
+        setRecError("Microphone permission was blocked. Allow the mic for this site, then try again.");
+      } else if (e.error === "language-not-supported" && recog.lang !== "en-US") {
+        // Phone doesn't support this locale — retry in plain English on restart.
+        recog.lang = "en-US";
+      }
+      // 'no-speech' / 'aborted' are normal — ignored.
     };
+
     recogRef.current = recog;
     try {
       recog.start();
+      return true;
     } catch {
-      /* already started / unsupported */
+      return false;
     }
   }
 
   async function startRecording() {
     setRecError(null);
     setInterim("");
+    setAudioUrl(null);
 
     if (typeof window !== "undefined" && !window.isSecureContext) {
-      setRecError(
-        "Recording needs a secure page. Open the app directly at http://localhost:3300 (not inside a preview frame). You can still type the sale below.",
-      );
-      return;
-    }
-    if (!navigator.mediaDevices?.getUserMedia) {
-      setRecError(
-        "In-app recording isn't available here (the embedded preview blocks the mic). Open http://localhost:3300 in a normal browser tab, or just type the sale below.",
-      );
+      setRecError("Recording needs a secure (https) page. On the live site it works; type the sale below otherwise.");
       return;
     }
 
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      streamRef.current = stream;
-      const mr = new MediaRecorder(stream);
-      chunksRef.current = [];
-      mr.ondataavailable = (e) => e.data.size > 0 && chunksRef.current.push(e.data);
-      mr.onstop = () => {
-        const blob = new Blob(chunksRef.current, { type: "audio/webm" });
-        setAudioUrl(URL.createObjectURL(blob));
-        streamRef.current?.getTracks().forEach((tk) => tk.stop());
-        setRec("recorded");
-      };
-      mr.start();
-      mrRef.current = mr;
-      setRec("recording");
-      setTranscript("");
-      startSpeech(); // transcribe in parallel; committed to the box on stop
-      if (!speechSupported) {
-        setRecError("Your browser can't auto-transcribe (try Chrome). Recording still works — type what you said below.");
-      }
-    } catch (err) {
-      const name = (err as Error)?.name;
-      if (name === "NotAllowedError" || name === "SecurityError") {
-        setRecError(
-          "Microphone permission was blocked. If you're inside the preview panel, open the app in a real browser tab (http://localhost:3300) and allow the mic. Or just type the sale below.",
-        );
-      } else if (name === "NotFoundError" || name === "DevicesNotFoundError") {
-        setRecError("No microphone was found on this device. Type what was said below instead.");
-      } else {
-        setRecError("Couldn't start recording here. You can type what was said below instead.");
-      }
+    const SR = getSpeechRecognition();
+    const canRecordAudio = !!navigator.mediaDevices?.getUserMedia;
+    if (!SR && !canRecordAudio) {
+      setRecError("This browser can't record or transcribe. Please type the sale below.");
+      return;
     }
-  }
 
-  function pause() {
-    mrRef.current?.pause();
-    setRec("paused");
-  }
-  function resume() {
-    mrRef.current?.resume();
+    setTranscript("");
     setRec("recording");
+
+    // 1) Primary: speech-to-text. It manages its own microphone.
+    if (SR) {
+      startSpeech();
+    } else {
+      setRecError("This browser can't auto-transcribe (try Chrome). Recording audio only — type what you said below.");
+    }
+
+    // 2) Best-effort: also capture audio for playback. Silently skipped if the
+    //    mic is busy (common on phones while speech recognition is using it).
+    if (canRecordAudio) {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        streamRef.current = stream;
+        const mr = new MediaRecorder(stream);
+        chunksRef.current = [];
+        mr.ondataavailable = (e) => e.data.size > 0 && chunksRef.current.push(e.data);
+        mr.onstop = () => {
+          const blob = new Blob(chunksRef.current, { type: mr.mimeType || "audio/webm" });
+          if (blob.size) setAudioUrl(URL.createObjectURL(blob));
+          streamRef.current?.getTracks().forEach((tk) => tk.stop());
+        };
+        mr.start();
+        mrRef.current = mr;
+      } catch {
+        mrRef.current = null; // mic busy — fine, we still transcribe
+      }
+    }
   }
+
   function stop() {
     userStopRef.current = true;
     activeRef.current = false;
@@ -192,8 +199,14 @@ export function VoiceSale({
     } catch {
       /* noop */
     }
-    mrRef.current?.stop();
+    try {
+      mrRef.current?.stop();
+    } catch {
+      /* noop */
+    }
+    setRec("recorded");
   }
+
   function reset() {
     try {
       recogRef.current?.abort();
@@ -201,6 +214,7 @@ export function VoiceSale({
       /* noop */
     }
     activeRef.current = false;
+    streamRef.current?.getTracks().forEach((tk) => tk.stop());
     setAudioUrl(null);
     setInterim("");
     chunksRef.current = [];
@@ -271,21 +285,21 @@ export function VoiceSale({
         <Card className="p-6">
           <h3 className="mb-1 font-display font-bold">1. Record</h3>
           <p className="mb-4 text-sm text-content-muted">
-            Speak naturally, then press stop. Your words are transcribed automatically and appear in the
+            Tap start, speak naturally, then tap stop. Your words are transcribed and appear in the
             transcript when you stop.
           </p>
 
-          <div className="mb-4 flex items-center gap-2">
+          <div className="mb-4 flex flex-wrap items-center gap-2">
             <span className="text-xs font-medium text-content-muted">Speech language</span>
             <Select
-              value={recLang}
-              onChange={(e) => setRecLang(e.target.value)}
-              disabled={rec === "recording" || rec === "paused"}
+              value={recMode}
+              onChange={(e) => setRecMode(e.target.value as RecMode)}
+              disabled={rec === "recording"}
               className="h-8 w-auto py-0 text-xs"
             >
-              <option value="en-NG">English (Nigeria)</option>
-              <option value="en-US">English (US)</option>
-              <option value="ha-NG">Hausa</option>
+              <option value="mixed">Mixed (Hausa + English)</option>
+              <option value="english">English</option>
+              <option value="hausa">Hausa</option>
             </Select>
           </div>
 
@@ -296,11 +310,10 @@ export function VoiceSale({
             <div className="mt-3 text-sm font-medium">
               {rec === "idle" && "Ready"}
               {rec === "recording" && "Listening…"}
-              {rec === "paused" && "Paused"}
               {rec === "recorded" && "Recorded"}
             </div>
 
-            {(rec === "recording" || rec === "paused") && interim && (
+            {rec === "recording" && interim && (
               <p className="mt-2 max-w-xs text-center text-xs italic text-content-muted">{interim}</p>
             )}
 
@@ -311,24 +324,9 @@ export function VoiceSale({
                 </Button>
               )}
               {rec === "recording" && (
-                <>
-                  <Button variant="outline" onClick={pause}>
-                    <Pause className="h-4 w-4" /> Pause
-                  </Button>
-                  <Button variant="danger" onClick={stop}>
-                    <Square className="h-4 w-4" /> Stop
-                  </Button>
-                </>
-              )}
-              {rec === "paused" && (
-                <>
-                  <Button onClick={resume}>
-                    <Play className="h-4 w-4" /> Resume
-                  </Button>
-                  <Button variant="danger" onClick={stop}>
-                    <Square className="h-4 w-4" /> Stop
-                  </Button>
-                </>
+                <Button variant="danger" onClick={stop}>
+                  <Square className="h-4 w-4" /> Stop
+                </Button>
               )}
               {rec === "recorded" && (
                 <>
@@ -349,6 +347,11 @@ export function VoiceSale({
             )}
           </div>
           {recError && <p className="mt-3 text-sm text-warning">{recError}</p>}
+          {!speechSupported && (
+            <p className="mt-3 text-xs text-content-muted">
+              Tip: automatic transcription needs Chrome (Android or desktop). On other browsers, just type the sale.
+            </p>
+          )}
         </Card>
 
         {/* Transcript */}
