@@ -25,7 +25,7 @@ import {
 import { useI18n } from "@/components/providers";
 import { StatCard } from "@/components/stat-card";
 import { PageHeader } from "@/components/page-header";
-import { Badge, Button, Card, StatusBadge } from "@/components/ui";
+import { Avatar, Badge, Card, StatusBadge } from "@/components/ui";
 import { ReminderDialog, type ReminderTarget } from "@/components/debts/reminder-dialog";
 import { formatMoney, formatMoneyCompact, formatNumber, formatDate, relativeDueLabel } from "@/lib/format";
 import type { DashboardStats } from "@/lib/calc";
@@ -102,46 +102,52 @@ export function DashboardView({
 
       {/* Needs attention: overdue + due-today debts with reminders */}
       {attention.length > 0 && (
-        <Card className="mt-4 border-danger/30">
-          <div className="flex items-center gap-2 border-b border-line p-5">
-            <Bell className="h-4 w-4 text-danger" />
+        <Card className="mt-4 overflow-hidden">
+          <div className="flex items-center gap-2.5 border-b border-line bg-danger/[0.04] p-5">
+            <span className="flex h-7 w-7 items-center justify-center rounded-full bg-danger/10 text-danger">
+              <Bell className="h-4 w-4" />
+            </span>
             <h3 className="font-display font-bold">Needs attention</h3>
             <Badge tone="danger">{attention.length}</Badge>
-            <Link href="/debts" className="ml-auto text-xs text-content-muted hover:text-content">
+            <Link href="/debts" className="ml-auto text-xs font-medium text-content-muted hover:text-content">
               {t("common.viewAll")}
             </Link>
           </div>
           <ul className="divide-y divide-line">
             {attention.map((a) => (
-              <li key={a.id} className="flex flex-wrap items-center gap-3 p-4">
+              <li key={a.id} className="flex items-center gap-3 p-4">
+                <Avatar name={a.customerName} />
                 <div className="min-w-0 flex-1">
-                  <Link href={`/sales/${a.id}`} className="font-medium hover:underline">
+                  <Link href={`/sales/${a.id}`} className="block truncate font-medium hover:underline">
                     {a.customerName}
                   </Link>
-                  <div className="mt-0.5 flex flex-wrap items-center gap-2 text-xs">
+                  <div className="mt-0.5 flex items-center gap-2">
                     <Badge tone={a.bucket === "overdue" ? "danger" : "warning"}>
                       {a.bucket === "overdue" ? "Overdue" : "Due today"}
                     </Badge>
-                    {a.dueDate && <span className="text-content-muted">· {relativeDueLabel(a.dueDate)}</span>}
+                    {a.bucket === "overdue" && a.dueDate && (
+                      <span className="text-xs text-content-muted">{relativeDueLabel(a.dueDate)}</span>
+                    )}
                   </div>
                 </div>
-                <div className="text-right font-semibold text-danger">{money(a.amount)}</div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() =>
-                    setRemindFor({
-                      customerName: a.customerName,
-                      phone: a.phone,
-                      whatsapp: a.whatsapp,
-                      amount: a.amount,
-                      dueDate: a.dueDate,
-                      bucket: a.bucket,
-                    })
-                  }
-                >
-                  <Bell className="h-4 w-4" /> Remind
-                </Button>
+                <div className="shrink-0 text-right">
+                  <div className="font-semibold text-danger">{money(a.amount)}</div>
+                  <button
+                    onClick={() =>
+                      setRemindFor({
+                        customerName: a.customerName,
+                        phone: a.phone,
+                        whatsapp: a.whatsapp,
+                        amount: a.amount,
+                        dueDate: a.dueDate,
+                        bucket: a.bucket,
+                      })
+                    }
+                    className="mt-0.5 inline-flex items-center gap-1 text-xs font-medium text-ink hover:underline dark:text-lime"
+                  >
+                    <Bell className="h-3.5 w-3.5" /> Remind
+                  </button>
+                </div>
               </li>
             ))}
           </ul>

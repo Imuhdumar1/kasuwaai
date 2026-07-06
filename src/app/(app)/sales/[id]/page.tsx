@@ -34,6 +34,7 @@ export default async function SalePage({ params }: { params: { id: string } }) {
       payments={(payments ?? []) as Payment[]}
       customer={customer}
       currency={business.currency}
+      businessName={business.business_name}
     />
   );
 }

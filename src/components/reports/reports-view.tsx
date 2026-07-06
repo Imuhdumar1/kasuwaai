@@ -31,7 +31,15 @@ export type ReportPayment = {
   reference_number: string | null;
 };
 
-type ReportType = "sales" | "debts" | "payments" | "products" | "customers";
+type ReportType =
+  | "sales"
+  | "revenue"
+  | "profit"
+  | "debts"
+  | "payments"
+  | "products"
+  | "customers"
+  | "summary";
 type Range = "today" | "week" | "month" | "year" | "all";
 
 export function ReportsView({
@@ -166,15 +174,104 @@ export function ReportsView({
           summary: [{ label: "Customers", value: String(entries.length) }],
         };
       }
+      case "revenue": {
+        const dayKey = (d: string) => {
+          const x = new Date(d);
+          return `${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, "0")}-${String(x.getDate()).padStart(2, "0")}`;
+        };
+        const byDay = new Map<string, { count: number; revenue: number; profit: number }>();
+        for (const s of fSales) {
+          const k = dayKey(s.sale_date);
+          const cur = byDay.get(k) ?? { count: 0, revenue: 0, profit: 0 };
+          cur.count += 1;
+          cur.revenue += s.total_amount;
+          cur.profit += s.profit;
+          byDay.set(k, cur);
+        }
+        const entries = Array.from(byDay.entries()).sort((a, b) => a[0].localeCompare(b[0]));
+        const headers = ["Date", "Transactions", "Revenue", "Profit"];
+        const rows = entries.map(([k, v]) => [formatDate(k), v.count, v.revenue, v.profit]);
+        const totalRev = fSales.reduce((a, s) => a + s.total_amount, 0);
+        const totalProfit = fSales.reduce((a, s) => a + s.profit, 0);
+        return {
+          headers,
+          rows,
+          summary: [
+            { label: "Total revenue", value: money(totalRev) },
+            { label: "Total profit", value: money(totalProfit) },
+          ],
+        };
+      }
+      case "profit": {
+        const map = new Map<string, { qty: number; revenue: number; cost: number }>();
+        for (const s of fSales)
+          for (const it of s.items) {
+            const cur = map.get(it.product_name) ?? { qty: 0, revenue: 0, cost: 0 };
+            cur.qty += it.quantity;
+            cur.revenue += it.line_total;
+            cur.cost += it.cost_price * it.quantity;
+            map.set(it.product_name, cur);
+          }
+        const entries = Array.from(map.entries()).sort(
+          (a, b) => b[1].revenue - b[1].cost - (a[1].revenue - a[1].cost),
+        );
+        const headers = ["Product", "Qty sold", "Revenue", "Cost", "Profit"];
+        const rows = entries.map(([n, v]) => [n, v.qty, v.revenue, v.cost, v.revenue - v.cost]);
+        const totalProfit = entries.reduce((a, [, v]) => a + (v.revenue - v.cost), 0);
+        const totalRev = entries.reduce((a, [, v]) => a + v.revenue, 0);
+        const margin = totalRev > 0 ? Math.round((totalProfit / totalRev) * 100) : 0;
+        return {
+          headers,
+          rows,
+          summary: [
+            { label: "Total profit", value: money(totalProfit) },
+            { label: "Avg margin", value: `${margin}%` },
+          ],
+        };
+      }
+      case "summary": {
+        const totalRev = fSales.reduce((a, s) => a + s.total_amount, 0);
+        const totalProfit = fSales.reduce((a, s) => a + s.profit, 0);
+        const paid = fPayments.reduce((a, p) => a + p.amount, 0);
+        const outstanding = fSales.reduce((a, s) => a + s.outstanding_balance, 0);
+        const openDebts = fSales.filter((s) => s.outstanding_balance > 0).length;
+        const custs = new Set(fSales.map((s) => s.customer_name ?? "Walk-in")).size;
+        const avg = fSales.length ? totalRev / fSales.length : 0;
+        const margin = totalRev > 0 ? Math.round((totalProfit / totalRev) * 100) : 0;
+        const headers = ["Metric", "Value"];
+        const rows: (string | number)[][] = [
+          ["Transactions", String(fSales.length)],
+          ["Total sales", money(totalRev)],
+          ["Total profit", money(totalProfit)],
+          ["Profit margin", `${margin}%`],
+          ["Payments received", money(paid)],
+          ["Outstanding debt", money(outstanding)],
+          ["Open debts", String(openDebts)],
+          ["Average sale", money(avg)],
+          ["Customers", String(custs)],
+        ];
+        return {
+          headers,
+          rows,
+          summary: [
+            { label: "Total sales", value: money(totalRev) },
+            { label: "Total profit", value: money(totalProfit) },
+            { label: "Outstanding", value: money(outstanding) },
+          ],
+        };
+      }
     }
   }, [type, fSales, fPayments, currency]);
 
   const moneyCols: Record<ReportType, number[]> = {
     sales: [2, 3, 4],
+    revenue: [2, 3],
+    profit: [2, 3, 4],
     debts: [2, 3, 4],
     payments: [2],
     products: [2, 3],
     customers: [2, 3],
+    summary: [],
   };
 
   const fileBase = `${businessName}-${type}-${range}`;
@@ -218,10 +315,13 @@ export function ReportsView({
       <div className="mb-4 flex flex-col gap-3 sm:flex-row">
         <Select value={type} onChange={(e) => setType(e.target.value as ReportType)} className="sm:w-56">
           <option value="sales">Sales report</option>
+          <option value="revenue">Revenue report</option>
+          <option value="profit">Profit report</option>
           <option value="debts">Debt report</option>
           <option value="payments">Payment report</option>
           <option value="products">Product report</option>
           <option value="customers">Customer report</option>
+          <option value="summary">Business summary</option>
         </Select>
         <Select value={range} onChange={(e) => setRange(e.target.value as Range)} className="sm:w-44">
           <option value="today">Today</option>

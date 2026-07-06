@@ -124,7 +124,7 @@ function Topbar({ business, onMenu }: { business: Business; onMenu: () => void }
   }
 
   return (
-    <header className="sticky top-0 z-30 flex h-16 items-center justify-between gap-3 border-b border-line bg-bg/80 px-4 backdrop-blur sm:px-6 lg:px-8 print:hidden">
+    <header className="sticky top-0 z-30 flex h-16 items-center justify-between gap-3 border-b border-line bg-bg px-4 sm:px-6 lg:px-8 print:hidden">
       <button
         onClick={onMenu}
         className="rounded-lg p-2 text-content-muted hover:bg-surface-2 lg:hidden"

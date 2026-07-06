@@ -3,11 +3,12 @@
 import { useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, CreditCard, Trash2, User } from "lucide-react";
+import { ArrowLeft, CreditCard, Trash2, User, Share2, Check } from "lucide-react";
 import { Button, Card, StatusBadge } from "@/components/ui";
 import { PaymentForm } from "@/components/payments/payment-form";
 import { useI18n } from "@/components/providers";
 import { formatMoney, formatDate, formatDateTime, relativeDueLabel } from "@/lib/format";
+import { buildReceipt } from "@/lib/receipt";
 import { deleteSale } from "@/app/(app)/sales/actions";
 import type { Sale, SaleItem, Payment } from "@/lib/types";
 
@@ -17,16 +18,19 @@ export function SaleDetail({
   payments,
   customer,
   currency,
+  businessName,
 }: {
   sale: Sale;
   items: SaleItem[];
   payments: Payment[];
   customer: { id: string; full_name: string } | null;
   currency: string;
+  businessName: string;
 }) {
   const { t } = useI18n();
   const router = useRouter();
   const [payOpen, setPayOpen] = useState(false);
+  const [shared, setShared] = useState(false);
   const [, start] = useTransition();
 
   function remove() {
@@ -36,6 +40,38 @@ export function SaleDetail({
       router.push("/sales");
       router.refresh();
     });
+  }
+
+  async function share() {
+    const text = buildReceipt({
+      businessName,
+      customerName: customer?.full_name ?? null,
+      date: sale.sale_date,
+      items: items.map((it) => ({ name: it.product_name, quantity: it.quantity, lineTotal: it.line_total })),
+      subtotal: sale.subtotal,
+      discount: sale.discount,
+      tax: sale.tax,
+      total: sale.total_amount,
+      paid: sale.amount_paid,
+      balance: sale.outstanding_balance,
+      currency,
+    });
+    // Native share sheet on mobile (WhatsApp, SMS, etc.); copy fallback on desktop.
+    if (typeof navigator !== "undefined" && navigator.share) {
+      try {
+        await navigator.share({ title: `${businessName} — receipt`, text });
+        return;
+      } catch {
+        /* user cancelled or unsupported — fall through to copy */
+      }
+    }
+    try {
+      await navigator.clipboard.writeText(text);
+      setShared(true);
+      setTimeout(() => setShared(false), 1800);
+    } catch {
+      /* clipboard blocked */
+    }
   }
 
   return (
@@ -58,6 +94,10 @@ export function SaleDetail({
               <CreditCard className="h-4 w-4" /> {t("pay.record")}
             </Button>
           )}
+          <Button variant="outline" onClick={share}>
+            {shared ? <Check className="h-4 w-4 text-success" /> : <Share2 className="h-4 w-4" />}
+            {shared ? "Copied" : "Share"}
+          </Button>
           <Button variant="outline" onClick={remove}>
             <Trash2 className="h-4 w-4" /> {t("common.delete")}
           </Button>
@@ -78,28 +118,19 @@ export function SaleDetail({
           <div className="border-b border-line p-5">
             <h3 className="font-display font-bold">{t("sale.item")}s</h3>
           </div>
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[420px] text-sm">
-              <thead>
-                <tr className="text-left text-xs uppercase text-content-muted">
-                  <th className="p-4 font-medium">{t("sale.product")}</th>
-                  <th className="p-4 text-right font-medium">{t("sale.qty")}</th>
-                  <th className="p-4 text-right font-medium">{t("sale.unitPrice")}</th>
-                  <th className="p-4 text-right font-medium">{t("f.total")}</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-line">
-                {items.map((it) => (
-                  <tr key={it.id}>
-                    <td className="p-4 font-medium">{it.product_name}</td>
-                    <td className="p-4 text-right">{it.quantity}</td>
-                    <td className="p-4 text-right">{formatMoney(it.unit_price, currency)}</td>
-                    <td className="p-4 text-right font-semibold">{formatMoney(it.line_total, currency)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <ul className="divide-y divide-line">
+            {items.map((it) => (
+              <li key={it.id} className="flex items-center justify-between gap-3 p-4">
+                <div className="min-w-0">
+                  <div className="truncate font-medium">{it.product_name}</div>
+                  <div className="text-xs text-content-muted">
+                    {it.quantity} × {formatMoney(it.unit_price, currency)}
+                  </div>
+                </div>
+                <div className="shrink-0 font-semibold">{formatMoney(it.line_total, currency)}</div>
+              </li>
+            ))}
+          </ul>
           <div className="space-y-1.5 border-t border-line p-5 text-sm">
             <Row label={t("sale.subtotal")} value={formatMoney(sale.subtotal, currency)} />
             {sale.discount > 0 && <Row label={t("sale.discount")} value={`− ${formatMoney(sale.discount, currency)}`} />}
