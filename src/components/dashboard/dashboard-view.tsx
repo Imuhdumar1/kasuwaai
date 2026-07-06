@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import {
   Area,
@@ -19,12 +20,14 @@ import {
   ShoppingCart,
   Sparkles,
   ArrowUpRight,
+  Bell,
 } from "lucide-react";
 import { useI18n } from "@/components/providers";
 import { StatCard } from "@/components/stat-card";
 import { PageHeader } from "@/components/page-header";
-import { Badge, Card, StatusBadge } from "@/components/ui";
-import { formatMoney, formatMoneyCompact, formatNumber, formatDate } from "@/lib/format";
+import { Badge, Button, Card, StatusBadge } from "@/components/ui";
+import { ReminderDialog, type ReminderTarget } from "@/components/debts/reminder-dialog";
+import { formatMoney, formatMoneyCompact, formatNumber, formatDate, relativeDueLabel } from "@/lib/format";
 import type { DashboardStats } from "@/lib/calc";
 
 type TrendPoint = { date: string; sales: number; payments: number };
@@ -38,6 +41,15 @@ type RecentItem = {
   date: string;
   status?: string;
 };
+type AttentionItem = {
+  id: string;
+  customerName: string;
+  phone: string | null;
+  whatsapp: string | null;
+  amount: number;
+  dueDate: string | null;
+  bucket: "overdue" | "today";
+};
 
 export function DashboardView({
   businessName,
@@ -48,6 +60,7 @@ export function DashboardView({
   bestProducts,
   recommendations,
   recent,
+  attention,
   counts,
 }: {
   businessName: string;
@@ -58,10 +71,12 @@ export function DashboardView({
   bestProducts: BestProduct[];
   recommendations: string[];
   recent: RecentItem[];
+  attention: AttentionItem[];
   counts: { customers: number; products: number };
 }) {
   const { t } = useI18n();
   const money = (n: number) => formatMoney(n, currency);
+  const [remindFor, setRemindFor] = useState<ReminderTarget | null>(null);
 
   return (
     <div className="animate-fade-up">
@@ -84,6 +99,54 @@ export function DashboardView({
         <StatCard label={t("dash.customers")} value={formatNumber(counts.customers)} icon={<Users className="h-4 w-4" />} />
         <StatCard label={t("dash.products")} value={formatNumber(counts.products)} icon={<Package className="h-4 w-4" />} />
       </div>
+
+      {/* Needs attention: overdue + due-today debts with reminders */}
+      {attention.length > 0 && (
+        <Card className="mt-4 border-danger/30">
+          <div className="flex items-center gap-2 border-b border-line p-5">
+            <Bell className="h-4 w-4 text-danger" />
+            <h3 className="font-display font-bold">Needs attention</h3>
+            <Badge tone="danger">{attention.length}</Badge>
+            <Link href="/debts" className="ml-auto text-xs text-content-muted hover:text-content">
+              {t("common.viewAll")}
+            </Link>
+          </div>
+          <ul className="divide-y divide-line">
+            {attention.map((a) => (
+              <li key={a.id} className="flex flex-wrap items-center gap-3 p-4">
+                <div className="min-w-0 flex-1">
+                  <Link href={`/sales/${a.id}`} className="font-medium hover:underline">
+                    {a.customerName}
+                  </Link>
+                  <div className="mt-0.5 flex flex-wrap items-center gap-2 text-xs">
+                    <Badge tone={a.bucket === "overdue" ? "danger" : "warning"}>
+                      {a.bucket === "overdue" ? "Overdue" : "Due today"}
+                    </Badge>
+                    {a.dueDate && <span className="text-content-muted">· {relativeDueLabel(a.dueDate)}</span>}
+                  </div>
+                </div>
+                <div className="text-right font-semibold text-danger">{money(a.amount)}</div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() =>
+                    setRemindFor({
+                      customerName: a.customerName,
+                      phone: a.phone,
+                      whatsapp: a.whatsapp,
+                      amount: a.amount,
+                      dueDate: a.dueDate,
+                      bucket: a.bucket,
+                    })
+                  }
+                >
+                  <Bell className="h-4 w-4" /> Remind
+                </Button>
+              </li>
+            ))}
+          </ul>
+        </Card>
+      )}
 
       {/* Chart + health */}
       <div className="mt-4 grid gap-4 lg:grid-cols-3">
@@ -247,6 +310,14 @@ export function DashboardView({
           ))}
         </ul>
       </Card>
+
+      <ReminderDialog
+        open={!!remindFor}
+        onClose={() => setRemindFor(null)}
+        target={remindFor}
+        businessName={businessName}
+        currency={currency}
+      />
     </div>
   );
 }

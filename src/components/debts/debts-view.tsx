@@ -2,19 +2,23 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { Receipt, CreditCard, AlertTriangle } from "lucide-react";
+import { Receipt, CreditCard, AlertTriangle, Bell } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
-import { Button, Card, EmptyState, Select, StatusBadge } from "@/components/ui";
+import { Badge, Button, Card, EmptyState, Select } from "@/components/ui";
 import { StatCard } from "@/components/stat-card";
 import { PaymentForm, type PayableSale } from "@/components/payments/payment-form";
+import { ReminderDialog, type ReminderTarget } from "@/components/debts/reminder-dialog";
 import { useI18n } from "@/components/providers";
 import { formatMoney, relativeDueLabel } from "@/lib/format";
-import { debtStatus } from "@/lib/calc";
+import { dueBucket } from "@/lib/calc";
+import type { DueBucket } from "@/lib/reminders";
 
 export type DebtRow = {
   id: string;
   customer_id: string | null;
   customer_name: string | null;
+  phone: string | null;
+  whatsapp: string | null;
   total_amount: number;
   amount_paid: number;
   outstanding_balance: number;
@@ -22,27 +26,35 @@ export type DebtRow = {
   due_date: string | null;
 };
 
-export function DebtsView({ rows, currency }: { rows: DebtRow[]; currency: string }) {
-  const { t } = useI18n();
-  const [filter, setFilter] = useState<"all" | "overdue" | "scheduled" | "unpaid">("all");
-  const [payFor, setPayFor] = useState<PayableSale | null>(null);
+const BUCKET_META: Record<DueBucket, { tone: "danger" | "warning" | "info" | "neutral"; label: string }> = {
+  overdue: { tone: "danger", label: "Overdue" },
+  today: { tone: "warning", label: "Due today" },
+  upcoming: { tone: "info", label: "Upcoming" },
+  none: { tone: "neutral", label: "No due date" },
+};
 
-  const withStatus = useMemo(
-    () => rows.map((r) => ({ ...r, derived: debtStatus(r) })),
-    [rows],
-  );
+export function DebtsView({
+  rows,
+  currency,
+  businessName,
+}: {
+  rows: DebtRow[];
+  currency: string;
+  businessName: string;
+}) {
+  const { t } = useI18n();
+  const [filter, setFilter] = useState<"all" | DueBucket>("all");
+  const [payFor, setPayFor] = useState<PayableSale | null>(null);
+  const [remindFor, setRemindFor] = useState<ReminderTarget | null>(null);
+
+  const withBucket = useMemo(() => rows.map((r) => ({ ...r, bucket: dueBucket(r) })), [rows]);
 
   const totalOutstanding = rows.reduce((a, r) => a + r.outstanding_balance, 0);
-  const overdue = withStatus.filter((r) => r.derived === "overdue");
+  const overdue = withBucket.filter((r) => r.bucket === "overdue");
+  const dueToday = withBucket.filter((r) => r.bucket === "today");
   const overdueAmount = overdue.reduce((a, r) => a + r.outstanding_balance, 0);
 
-  const filtered = withStatus.filter((r) => {
-    if (filter === "all") return true;
-    if (filter === "overdue") return r.derived === "overdue";
-    if (filter === "scheduled") return r.derived === "scheduled";
-    if (filter === "unpaid") return r.status === "unpaid";
-    return true;
-  });
+  const filtered = withBucket.filter((r) => (filter === "all" ? true : r.bucket === filter));
 
   return (
     <div className="animate-fade-up">
@@ -50,8 +62,8 @@ export function DebtsView({ rows, currency }: { rows: DebtRow[]; currency: strin
 
       <div className="mb-4 grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
         <StatCard label={t("dash.outstanding")} value={formatMoney(totalOutstanding, currency)} accent={totalOutstanding > 0 ? "danger" : "none"} />
-        <StatCard label={t("dash.overdue")} value={String(overdue.length)} icon={<AlertTriangle className="h-4 w-4" />} accent={overdue.length ? "danger" : "none"} />
-        <StatCard label="Overdue amount" value={formatMoney(overdueAmount, currency)} />
+        <StatCard label={t("dash.overdue")} value={String(overdue.length)} icon={<AlertTriangle className="h-4 w-4" />} accent={overdue.length ? "danger" : "none"} sub={overdueAmount > 0 ? formatMoney(overdueAmount, currency) : undefined} />
+        <StatCard label="Due today" value={String(dueToday.length)} accent={dueToday.length ? "warning" : "none"} />
         <StatCard label="Open debts" value={String(rows.length)} />
       </div>
 
@@ -59,8 +71,9 @@ export function DebtsView({ rows, currency }: { rows: DebtRow[]; currency: strin
         <Select value={filter} onChange={(e) => setFilter(e.target.value as typeof filter)} className="sm:w-48">
           <option value="all">{t("common.all")}</option>
           <option value="overdue">Overdue</option>
-          <option value="scheduled">Scheduled</option>
-          <option value="unpaid">Unpaid</option>
+          <option value="today">Due today</option>
+          <option value="upcoming">Upcoming</option>
+          <option value="none">No due date</option>
         </Select>
       </div>
 
@@ -73,40 +86,68 @@ export function DebtsView({ rows, currency }: { rows: DebtRow[]; currency: strin
       ) : (
         <Card className="overflow-hidden">
           <ul className="divide-y divide-line">
-            {filtered.map((r) => (
-              <li key={r.id} className="flex flex-wrap items-center gap-3 p-4">
-                <div className="min-w-0 flex-1">
-                  <Link href={`/sales/${r.id}`} className="font-medium hover:underline">
-                    {r.customer_name ?? t("sale.walkin")}
-                  </Link>
-                  <div className="mt-0.5 flex items-center gap-2 text-xs text-content-muted">
-                    <StatusBadge status={r.derived} />
-                    {r.due_date && <span>· {relativeDueLabel(r.due_date)}</span>}
+            {filtered.map((r) => {
+              const meta = BUCKET_META[r.bucket];
+              return (
+                <li key={r.id} className="flex flex-wrap items-center gap-3 p-4">
+                  <div className="min-w-0 flex-1">
+                    <Link href={`/sales/${r.id}`} className="font-medium hover:underline">
+                      {r.customer_name ?? t("sale.walkin")}
+                    </Link>
+                    <div className="mt-0.5 flex flex-wrap items-center gap-2 text-xs text-content-muted">
+                      <Badge tone={meta.tone}>{meta.label}</Badge>
+                      {r.due_date && <span>· {relativeDueLabel(r.due_date)}</span>}
+                    </div>
                   </div>
-                </div>
-                <div className="text-right">
-                  <div className="text-xs text-content-muted">{t("debt.remaining")}</div>
-                  <div className="font-semibold text-danger">{formatMoney(r.outstanding_balance, currency)}</div>
-                </div>
-                <Button
-                  size="sm"
-                  onClick={() =>
-                    setPayFor({
-                      id: r.id,
-                      label: r.customer_name ?? t("sale.walkin"),
-                      outstanding_balance: r.outstanding_balance,
-                    })
-                  }
-                >
-                  <CreditCard className="h-4 w-4" /> {t("debt.settle")}
-                </Button>
-              </li>
-            ))}
+                  <div className="text-right">
+                    <div className="text-xs text-content-muted">{t("debt.remaining")}</div>
+                    <div className="font-semibold text-danger">{formatMoney(r.outstanding_balance, currency)}</div>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() =>
+                        setRemindFor({
+                          customerName: r.customer_name ?? "",
+                          phone: r.phone,
+                          whatsapp: r.whatsapp,
+                          amount: r.outstanding_balance,
+                          dueDate: r.due_date,
+                          bucket: r.bucket,
+                        })
+                      }
+                    >
+                      <Bell className="h-4 w-4" /> Remind
+                    </Button>
+                    <Button
+                      size="sm"
+                      onClick={() =>
+                        setPayFor({
+                          id: r.id,
+                          label: r.customer_name ?? t("sale.walkin"),
+                          outstanding_balance: r.outstanding_balance,
+                        })
+                      }
+                    >
+                      <CreditCard className="h-4 w-4" /> {t("debt.settle")}
+                    </Button>
+                  </div>
+                </li>
+              );
+            })}
           </ul>
         </Card>
       )}
 
       <PaymentForm open={!!payFor} onClose={() => setPayFor(null)} sale={payFor} currency={currency} />
+      <ReminderDialog
+        open={!!remindFor}
+        onClose={() => setRemindFor(null)}
+        target={remindFor}
+        businessName={businessName}
+        currency={currency}
+      />
     </div>
   );
 }

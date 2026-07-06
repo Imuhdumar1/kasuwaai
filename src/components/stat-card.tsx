@@ -11,7 +11,7 @@ export function StatCard({
   value: string;
   icon?: React.ReactNode;
   sub?: string;
-  accent?: "lime" | "danger" | "success" | "info" | "none";
+  accent?: "lime" | "danger" | "success" | "info" | "warning" | "none";
 }) {
   const accentRing =
     accent === "lime"
@@ -22,7 +22,9 @@ export function StatCard({
           ? "before:bg-success"
           : accent === "info"
             ? "before:bg-info"
-            : "before:bg-transparent";
+            : accent === "warning"
+              ? "before:bg-warning"
+              : "before:bg-transparent";
 
   return (
     <div

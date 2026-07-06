@@ -30,6 +30,15 @@ export function debtStatus(sale: Pick<Sale, "status" | "outstanding_balance" | "
   return sale.status; // unpaid / partially_paid with no due date
 }
 
+/** Time bucket of an open debt: overdue (past due), today, upcoming (future), or none (no due date). */
+export function dueBucket(sale: Pick<Sale, "due_date">): "overdue" | "today" | "upcoming" | "none" {
+  const days = daysUntil(sale.due_date);
+  if (days === null) return "none";
+  if (days < 0) return "overdue";
+  if (days === 0) return "today";
+  return "upcoming";
+}
+
 export interface DashboardStats {
   todaySales: number;
   weekSales: number;

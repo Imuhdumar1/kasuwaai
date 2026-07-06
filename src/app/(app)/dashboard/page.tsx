@@ -5,6 +5,7 @@ import {
   topCustomers,
   bestProducts,
   recommendations,
+  dueBucket,
   type SaleForCalc,
 } from "@/lib/calc";
 import { DashboardView } from "@/components/dashboard/dashboard-view";
@@ -19,7 +20,7 @@ export default async function DashboardPage() {
   const [salesRes, paymentsRes, custCount, prodCount] = await Promise.all([
     supabase
       .from("sales")
-      .select("*, sale_items(*), customer:customers(id, full_name)")
+      .select("*, sale_items(*), customer:customers(id, full_name, phone, whatsapp)")
       .eq("business_id", business.id)
       .order("sale_date", { ascending: false }),
     supabase
@@ -69,6 +70,28 @@ export default async function DashboardPage() {
     .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
     .slice(0, 8);
 
+  // Debts needing attention today: overdue + due-today, most-urgent first.
+  const attention = sales
+    .filter((s) => s.outstanding_balance > 0 && ["overdue", "today"].includes(dueBucket(s)))
+    .sort((a, b) => {
+      const da = a.due_date ? new Date(a.due_date).getTime() : Infinity;
+      const db = b.due_date ? new Date(b.due_date).getTime() : Infinity;
+      return da - db;
+    })
+    .slice(0, 6)
+    .map((s) => {
+      const c = s.customer as { id: string; full_name: string; phone: string | null; whatsapp: string | null } | null;
+      return {
+        id: s.id,
+        customerName: c?.full_name ?? "Walk-in customer",
+        phone: c?.phone ?? null,
+        whatsapp: c?.whatsapp ?? null,
+        amount: s.outstanding_balance,
+        dueDate: s.due_date,
+        bucket: dueBucket(s) as "overdue" | "today",
+      };
+    });
+
   return (
     <DashboardView
       businessName={business.business_name}
@@ -79,6 +102,7 @@ export default async function DashboardPage() {
       bestProducts={best}
       recommendations={recs}
       recent={recent}
+      attention={attention}
       counts={{ customers: custCount.count ?? 0, products: prodCount.count ?? 0 }}
     />
   );

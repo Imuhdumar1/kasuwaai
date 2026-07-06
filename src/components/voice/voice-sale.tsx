@@ -39,7 +39,10 @@ function getSpeechRecognition(): SRConstructor | null {
 // Mixed and English both use a broadly-supported English recognizer (it handles
 // English well and approximates Hausa words, which the user then corrects).
 // Hausa tries a Hausa recognizer, falling back to English if unsupported.
-const RECOG_LANG: Record<RecMode, string> = { mixed: "en-NG", english: "en-US", hausa: "ha-NG" };
+// en-US is the most broadly-supported recognizer across Chrome builds; it handles
+// English and approximates Hausa words (which the user corrects). Hausa mode tries
+// a Hausa recognizer and falls back to English if the device rejects it.
+const RECOG_LANG: Record<RecMode, string> = { mixed: "en-US", english: "en-US", hausa: "ha-NG" };
 
 const EXAMPLES = [
   "Three bags of rice sold to Haruna for one hundred and eighty thousand naira. He paid one hundred thousand.",
@@ -107,6 +110,8 @@ export function VoiceSale({
         else live += txt;
       }
       setInterim(live);
+      // Fill the transcript box live so the user sees it working immediately.
+      setTranscript((finalRef.current + " " + live).trim());
     };
     recog.onend = () => {
       // Mobile browsers (esp. iOS) stop after each phrase — restart while active.
@@ -123,14 +128,19 @@ export function VoiceSale({
       if (finalText) setTranscript(finalText);
     };
     recog.onerror = (e) => {
-      if (e.error === "not-allowed" || e.error === "service-not-allowed") {
+      const err = e.error;
+      if (err === "not-allowed" || err === "service-not-allowed") {
         activeRef.current = false;
-        setRecError("Microphone permission was blocked. Allow the mic for this site, then try again.");
-      } else if (e.error === "language-not-supported" && recog.lang !== "en-US") {
-        // Phone doesn't support this locale — retry in plain English on restart.
-        recog.lang = "en-US";
+        setRec("idle");
+        setRecError("Microphone is blocked. Tap the 🔒 (or ⓘ) in the address bar → Permissions → allow Microphone, reload, then try again.");
+      } else if (err === "language-not-supported" && recog.lang !== "en-US") {
+        recog.lang = "en-US"; // retry in English on the automatic restart
+      } else if (err === "network") {
+        setRecError("Couldn't reach the speech service — check your internet connection and try again.");
+      } else if (err !== "no-speech" && err !== "aborted") {
+        setRecError(`Voice recognition stopped (${err}). Tap Start to retry, or type the sale below.`);
       }
-      // 'no-speech' / 'aborted' are normal — ignored.
+      // 'no-speech' / 'aborted' are normal pauses — ignored.
     };
 
     recogRef.current = recog;
