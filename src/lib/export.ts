@@ -48,3 +48,56 @@ export function downloadWord(filename: string, title: string, headers: string[],
   const blob = new Blob(["﻿" + html], { type: "application/msword" });
   triggerDownload(blob, filename.endsWith(".doc") ? filename : `${filename}.doc`);
 }
+
+export type ExportSection = { title: string; headers: string[]; rows: Cell[][] };
+
+/** All reports in one PDF — each section as a titled table, flowing across pages. */
+export function downloadPdfSections(filename: string, docTitle: string, sections: ExportSection[]) {
+  const doc = new jsPDF();
+  doc.setFontSize(16);
+  doc.text(docTitle, 14, 16);
+  doc.setFontSize(9);
+  doc.setTextColor(120);
+  doc.text(`Generated ${new Date().toLocaleString()}`, 14, 22);
+  let cursorY = 30;
+  for (const sec of sections) {
+    if (cursorY > 250) {
+      doc.addPage();
+      cursorY = 20;
+    }
+    doc.setFontSize(12);
+    doc.setTextColor(10, 10, 10);
+    doc.text(sec.title, 14, cursorY);
+    autoTable(doc, {
+      head: [sec.headers],
+      body: sec.rows.length ? sec.rows.map((r) => r.map((c) => String(c))) : [["No data"]],
+      startY: cursorY + 3,
+      styles: { fontSize: 8, cellPadding: 2.5 },
+      headStyles: { fillColor: [10, 10, 10], textColor: [245, 242, 235] },
+      alternateRowStyles: { fillColor: [245, 242, 235] },
+      margin: { left: 14, right: 14 },
+    });
+    cursorY = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 12;
+  }
+  doc.save(filename.endsWith(".pdf") ? filename : `${filename}.pdf`);
+}
+
+/** All reports in one Word document — a titled table per section. */
+export function downloadWordSections(filename: string, docTitle: string, sections: ExportSection[]) {
+  const body = sections
+    .map((sec) => {
+      const th = sec.headers
+        .map((h) => `<th style="background:#0a0a0a;color:#fff;padding:6px;text-align:left">${escapeHtml(h)}</th>`)
+        .join("");
+      const trs = sec.rows.length
+        ? sec.rows
+            .map((r) => `<tr>${r.map((c) => `<td style="padding:6px;border:1px solid #ddd">${escapeHtml(c)}</td>`).join("")}</tr>`)
+            .join("")
+        : `<tr><td style="padding:6px;border:1px solid #ddd">No data</td></tr>`;
+      return `<h2>${escapeHtml(sec.title)}</h2><table style="border-collapse:collapse;width:100%;margin-bottom:18px"><thead><tr>${th}</tr></thead><tbody>${trs}</tbody></table>`;
+    })
+    .join("");
+  const html = `<!DOCTYPE html><html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word"><head><meta charset="utf-8"><title>${escapeHtml(docTitle)}</title></head><body style="font-family:Arial,sans-serif"><h1>${escapeHtml(docTitle)}</h1><p style="color:#666">Generated ${new Date().toLocaleString()}</p>${body}</body></html>`;
+  const blob = new Blob(["﻿" + html], { type: "application/msword" });
+  triggerDownload(blob, filename.endsWith(".doc") ? filename : `${filename}.doc`);
+}

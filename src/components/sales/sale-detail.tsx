@@ -43,7 +43,7 @@ export function SaleDetail({
   }
 
   async function share() {
-    const text = buildReceipt({
+    const data = {
       businessName,
       customerName: customer?.full_name ?? null,
       date: sale.sale_date,
@@ -55,14 +55,45 @@ export function SaleDetail({
       paid: sale.amount_paid,
       balance: sale.outstanding_balance,
       currency,
-    });
-    // Native share sheet on mobile (WhatsApp, SMS, etc.); copy fallback on desktop.
-    if (typeof navigator !== "undefined" && navigator.share) {
+    };
+    const text = buildReceipt(data); // caption + fallback
+
+    const { renderReceiptImage } = await import("@/lib/receipt-image");
+    const blob = await renderReceiptImage(data);
+
+    if (blob) {
+      const file = new File([blob], `receipt-${businessName}.png`, { type: "image/png" });
+      const nav = navigator as Navigator & { canShare?: (d: { files?: File[] }) => boolean };
+      // Share the image file itself (Android Chrome, iOS Safari → WhatsApp, etc.)
+      if (nav.canShare && nav.canShare({ files: [file] }) && navigator.share) {
+        try {
+          await navigator.share({ files: [file], title: `${businessName} — receipt`, text });
+          return;
+        } catch {
+          /* cancelled — fall through to download */
+        }
+      }
+      // Download fallback (desktop / unsupported)
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = file.name;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+      setShared(true);
+      setTimeout(() => setShared(false), 1800);
+      return;
+    }
+
+    // Image couldn't be generated → text fallback.
+    if (navigator.share) {
       try {
         await navigator.share({ title: `${businessName} — receipt`, text });
         return;
       } catch {
-        /* user cancelled or unsupported — fall through to copy */
+        /* fall through */
       }
     }
     try {
@@ -96,7 +127,7 @@ export function SaleDetail({
           )}
           <Button variant="outline" onClick={share}>
             {shared ? <Check className="h-4 w-4 text-success" /> : <Share2 className="h-4 w-4" />}
-            {shared ? "Copied" : "Share"}
+            {shared ? "Done" : "Share"}
           </Button>
           <Button variant="outline" onClick={remove}>
             <Trash2 className="h-4 w-4" /> {t("common.delete")}

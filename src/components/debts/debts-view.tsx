@@ -103,10 +103,11 @@ export function DebtsView({
                     <div className="text-xs text-content-muted">{t("debt.remaining")}</div>
                     <div className="font-semibold text-danger">{formatMoney(r.outstanding_balance, currency)}</div>
                   </div>
-                  <div className="flex gap-2">
+                  <div className="flex w-full gap-2 sm:w-auto">
                     <Button
                       variant="outline"
                       size="sm"
+                      className="flex-1 sm:flex-none"
                       onClick={() =>
                         setRemindFor({
                           customerName: r.customer_name ?? "",
@@ -122,6 +123,7 @@ export function DebtsView({
                     </Button>
                     <Button
                       size="sm"
+                      className="flex-1 sm:flex-none"
                       onClick={() =>
                         setPayFor({
                           id: r.id,

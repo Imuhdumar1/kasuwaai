@@ -73,7 +73,8 @@ export function VoiceSale({
   const chunksRef = useRef<Blob[]>([]);
   const streamRef = useRef<MediaStream | null>(null);
   const recogRef = useRef<SpeechRec | null>(null);
-  const finalRef = useRef("");
+  const finalRef = useRef(""); // committed text from previous (ended) sessions
+  const sessionFinalRef = useRef(""); // finalized text of the current session
   const activeRef = useRef(false);
   const userStopRef = useRef(false);
 
@@ -98,24 +99,34 @@ export function VoiceSale({
     recog.continuous = true;
     recog.interimResults = true;
     finalRef.current = "";
+    sessionFinalRef.current = "";
     userStopRef.current = false;
     activeRef.current = true;
 
+    const clean = (s: string) => s.replace(/\s+/g, " ").trim();
+
     recog.onresult = (e) => {
+      // Rebuild from the full cumulative results list every event. Appending
+      // instead (the old approach) double-counted finals when a result fired
+      // more than once, producing "zan sayi shinkafa, zan sayi shinkafa, …".
+      let sessionFinal = "";
       let live = "";
-      for (let i = e.resultIndex; i < e.results.length; i++) {
+      for (let i = 0; i < e.results.length; i++) {
         const res = e.results[i];
         const txt = res[0]?.transcript ?? "";
-        if (res.isFinal) finalRef.current += txt + " ";
-        else live += txt;
+        if (res.isFinal) sessionFinal += txt + " ";
+        else live += txt + " ";
       }
-      setInterim(live);
-      // Fill the transcript box live so the user sees it working immediately.
-      setTranscript((finalRef.current + " " + live).trim());
+      sessionFinalRef.current = sessionFinal;
+      setInterim(clean(live));
+      setTranscript(clean(finalRef.current + " " + sessionFinal + " " + live));
     };
     recog.onend = () => {
-      // Mobile browsers (esp. iOS) stop after each phrase — restart while active.
+      // Mobile browsers (esp. iOS) stop after each phrase — commit what we have
+      // and restart while still recording.
       if (activeRef.current && !userStopRef.current) {
+        finalRef.current = clean(finalRef.current + " " + sessionFinalRef.current);
+        sessionFinalRef.current = "";
         try {
           recog.start();
           return;
@@ -124,8 +135,7 @@ export function VoiceSale({
         }
       }
       setInterim("");
-      const finalText = finalRef.current.trim();
-      if (finalText) setTranscript(finalText);
+      setTranscript(clean(finalRef.current + " " + sessionFinalRef.current));
     };
     recog.onerror = (e) => {
       const err = e.error;
