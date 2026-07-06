@@ -6,7 +6,6 @@ import { usePathname, useRouter } from "next/navigation";
 import {
   LayoutDashboard,
   ShoppingCart,
-  Mic,
   Users,
   Package,
   Receipt,
@@ -30,7 +29,6 @@ import type { Business } from "@/lib/types";
 const NAV: { href: string; icon: React.ElementType; key: string }[] = [
   { href: "/dashboard", icon: LayoutDashboard, key: "nav.dashboard" },
   { href: "/sales", icon: ShoppingCart, key: "nav.sales" },
-  { href: "/voice", icon: Mic, key: "nav.voice" },
   { href: "/customers", icon: Users, key: "nav.customers" },
   { href: "/products", icon: Package, key: "nav.products" },
   { href: "/debts", icon: Receipt, key: "nav.debts" },

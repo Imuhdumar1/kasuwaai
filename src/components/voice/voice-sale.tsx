@@ -148,30 +148,28 @@ export function VoiceSale({
     setAudioUrl(null);
 
     if (typeof window !== "undefined" && !window.isSecureContext) {
-      setRecError("Recording needs a secure (https) page. On the live site it works; type the sale below otherwise.");
+      setRecError("Recording needs a secure (https) page — it works on the live site. Otherwise, type the sale below.");
       return;
     }
 
     const SR = getSpeechRecognition();
-    const canRecordAudio = !!navigator.mediaDevices?.getUserMedia;
-    if (!SR && !canRecordAudio) {
-      setRecError("This browser can't record or transcribe. Please type the sale below.");
+
+    // When speech-to-text is available, use it ALONE. Running an audio recorder at
+    // the same time steals the microphone on phones and blocks transcription.
+    if (SR) {
+      setTranscript("");
+      setRec("recording");
+      const ok = startSpeech();
+      if (!ok) {
+        setRec("idle");
+        setRecError("Couldn't start listening. Tap Start again, or type the sale below.");
+      }
       return;
     }
 
-    setTranscript("");
-    setRec("recording");
-
-    // 1) Primary: speech-to-text. It manages its own microphone.
-    if (SR) {
-      startSpeech();
-    } else {
-      setRecError("This browser can't auto-transcribe (try Chrome). Recording audio only — type what you said below.");
-    }
-
-    // 2) Best-effort: also capture audio for playback. Silently skipped if the
-    //    mic is busy (common on phones while speech recognition is using it).
-    if (canRecordAudio) {
+    // No speech recognition (e.g. Firefox or some in-app browsers): record audio so
+    // the user can replay it and type the transcript manually.
+    if (navigator.mediaDevices?.getUserMedia) {
       try {
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
         streamRef.current = stream;
@@ -185,9 +183,18 @@ export function VoiceSale({
         };
         mr.start();
         mrRef.current = mr;
-      } catch {
-        mrRef.current = null; // mic busy — fine, we still transcribe
+        setRec("recording");
+        setRecError("This browser can't auto-transcribe — open the site in Chrome for that. For now, replay your recording and type what you said below.");
+      } catch (err) {
+        const name = (err as Error)?.name;
+        setRecError(
+          name === "NotAllowedError" || name === "SecurityError"
+            ? "Microphone permission was blocked. Allow the mic for this site and try again."
+            : "Couldn't start the microphone here. Please type the sale below instead.",
+        );
       }
+    } else {
+      setRecError("This browser can't record or transcribe. Please type the sale below.");
     }
   }
 
