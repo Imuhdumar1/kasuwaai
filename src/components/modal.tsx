@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { X } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -21,6 +22,9 @@ export function Modal({
   footer?: React.ReactNode;
   size?: "sm" | "md" | "lg";
 }) {
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
@@ -32,22 +36,22 @@ export function Modal({
     };
   }, [open, onClose]);
 
-  if (!open) return null;
+  if (!open || !mounted) return null;
 
   const sizeClass = size === "sm" ? "sm:max-w-md" : size === "lg" ? "sm:max-w-3xl" : "sm:max-w-xl";
 
-  return (
-    // z-[60] keeps it above the sticky header (z-30). Bottom-sheet on mobile,
-    // centered on larger screens. Height is capped to the viewport so the body
-    // scrolls internally instead of overflowing or overlapping the header.
-    <div className="fixed inset-0 z-[60] flex items-end justify-center sm:items-center sm:p-4">
-      <div className="fixed inset-0 bg-ink/50 backdrop-blur-sm" onClick={onClose} aria-hidden />
+  const modal = (
+    // Rendered into <body> via a portal so ancestor transforms (e.g. the page
+    // fade-in animation) can't anchor this fixed layer to the page instead of
+    // the viewport. Bottom-sheet on mobile, centered on larger screens.
+    <div className="fixed inset-0 z-[100] flex items-end justify-center sm:items-center sm:p-4">
+      <div className="absolute inset-0 bg-ink/50 backdrop-blur-sm" onClick={onClose} aria-hidden />
       <div
         role="dialog"
         aria-modal="true"
         className={cn(
-          "relative z-10 flex max-h-[92dvh] w-full flex-col overflow-hidden rounded-t-2xl border border-line bg-surface shadow-soft",
-          "sm:max-h-[calc(100dvh-2rem)] sm:rounded-2xl",
+          "relative z-10 flex max-h-[88vh] w-full flex-col overflow-hidden rounded-t-2xl border border-line bg-surface shadow-soft",
+          "sm:max-h-[calc(100vh_-_2.5rem)] sm:rounded-2xl",
           sizeClass,
         )}
       >
@@ -69,4 +73,6 @@ export function Modal({
       </div>
     </div>
   );
+
+  return createPortal(modal, document.body);
 }
