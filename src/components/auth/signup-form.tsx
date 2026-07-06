@@ -7,6 +7,17 @@ import { createClient } from "@/lib/supabase/client";
 import { Button, Field, Input, Select, Spinner } from "@/components/ui";
 import { BUSINESS_CATEGORIES } from "@/lib/types";
 
+const REQUIRED = [
+  "business_name",
+  "owner_name",
+  "phone",
+  "business_category",
+  "market_location",
+  "state",
+  "lga",
+  "email",
+] as const;
+
 export function SignupForm() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
@@ -15,33 +26,70 @@ export function SignupForm() {
 
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    setLoading(true);
     setError(null);
     const fd = new FormData(e.currentTarget);
-    const email = String(fd.get("email"));
-    const password = String(fd.get("password"));
+    const get = (k: string) => String(fd.get(k) ?? "").trim();
+    const email = get("email");
+    const phone = get("phone");
+    const password = String(fd.get("password") ?? "");
 
+    // Every field is required.
+    if (REQUIRED.some((f) => !get(f))) {
+      setError("Please fill in every field before creating your account.");
+      return;
+    }
+    if (password.length < 6) {
+      setError("Password must be at least 6 characters.");
+      return;
+    }
+
+    setLoading(true);
     const supabase = createClient();
+
+    // Friendly, up-front uniqueness checks for email + phone.
+    try {
+      const [emailRes, phoneRes] = await Promise.all([
+        supabase.rpc("email_available", { p_email: email }),
+        supabase.rpc("phone_available", { p_phone: phone }),
+      ]);
+      if (emailRes.data === false) {
+        setError("This email is already registered. Try logging in instead.");
+        setLoading(false);
+        return;
+      }
+      if (phoneRes.data === false) {
+        setError("This phone number is already registered to another account.");
+        setLoading(false);
+        return;
+      }
+    } catch {
+      // If the checks are unavailable, continue — signUp still guards the email.
+    }
+
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
       options: {
         data: {
-          business_name: fd.get("business_name"),
-          owner_name: fd.get("owner_name"),
-          phone: fd.get("phone"),
-          business_category: fd.get("business_category"),
-          market_location: fd.get("market_location"),
-          state: fd.get("state"),
-          lga: fd.get("lga"),
-          language: fd.get("language"),
-          currency: fd.get("currency"),
+          business_name: get("business_name"),
+          owner_name: get("owner_name"),
+          phone,
+          business_category: get("business_category"),
+          market_location: get("market_location"),
+          state: get("state"),
+          lga: get("lga"),
+          language: get("language"),
+          currency: get("currency"),
         },
       },
     });
 
     if (error) {
-      setError(error.message);
+      setError(
+        /already registered|already exists/i.test(error.message)
+          ? "This email is already registered. Try logging in instead."
+          : error.message,
+      );
       setLoading(false);
       return;
     }
@@ -50,7 +98,6 @@ export function SignupForm() {
       router.refresh();
       return;
     }
-    // Email confirmation is enabled on this project.
     setMessage("Account created! Check your email to confirm, then log in.");
     setLoading(false);
   }
@@ -70,25 +117,25 @@ export function SignupForm() {
   return (
     <div>
       <h1 className="font-display text-2xl font-extrabold">Create your account</h1>
-      <p className="mt-1 text-sm text-content-muted">Set up your business in a minute.</p>
+      <p className="mt-1 text-sm text-content-muted">All fields are required.</p>
 
-      <form onSubmit={onSubmit} className="mt-6 space-y-4">
+      <form onSubmit={onSubmit} className="mt-6 space-y-4" noValidate={false}>
         <Field label="Business name" htmlFor="business_name" required>
-          <Input id="business_name" name="business_name" required placeholder="e.g. Amina Foodstuff Store" />
+          <Input id="business_name" name="business_name" required maxLength={120} placeholder="e.g. Amina Foodstuff Store" />
         </Field>
 
         <div className="grid grid-cols-2 gap-3">
-          <Field label="Owner name" htmlFor="owner_name">
-            <Input id="owner_name" name="owner_name" placeholder="Full name" />
+          <Field label="Owner name" htmlFor="owner_name" required>
+            <Input id="owner_name" name="owner_name" required maxLength={120} placeholder="Full name" />
           </Field>
-          <Field label="Phone" htmlFor="phone">
-            <Input id="phone" name="phone" type="tel" placeholder="080..." />
+          <Field label="Phone" htmlFor="phone" required>
+            <Input id="phone" name="phone" type="tel" required maxLength={20} placeholder="080..." />
           </Field>
         </div>
 
         <div className="grid grid-cols-2 gap-3">
-          <Field label="Category" htmlFor="business_category">
-            <Select id="business_category" name="business_category" defaultValue="">
+          <Field label="Category" htmlFor="business_category" required>
+            <Select id="business_category" name="business_category" required defaultValue="">
               <option value="" disabled>
                 Select…
               </option>
@@ -99,28 +146,28 @@ export function SignupForm() {
               ))}
             </Select>
           </Field>
-          <Field label="Market / location" htmlFor="market_location">
-            <Input id="market_location" name="market_location" placeholder="e.g. Kurmi Market" />
+          <Field label="Market / location" htmlFor="market_location" required>
+            <Input id="market_location" name="market_location" required maxLength={120} placeholder="e.g. Kurmi Market" />
           </Field>
         </div>
 
         <div className="grid grid-cols-2 gap-3">
-          <Field label="State" htmlFor="state">
-            <Input id="state" name="state" placeholder="e.g. Kano" />
+          <Field label="State" htmlFor="state" required>
+            <Input id="state" name="state" required maxLength={60} placeholder="e.g. Kano" />
           </Field>
-          <Field label="LGA" htmlFor="lga">
-            <Input id="lga" name="lga" placeholder="Local govt. area" />
+          <Field label="LGA" htmlFor="lga" required>
+            <Input id="lga" name="lga" required maxLength={60} placeholder="Local govt. area" />
           </Field>
         </div>
 
         <div className="grid grid-cols-2 gap-3">
-          <Field label="Language" htmlFor="language">
+          <Field label="Language" htmlFor="language" required>
             <Select id="language" name="language" defaultValue="en">
               <option value="en">English</option>
               <option value="ha">Hausa</option>
             </Select>
           </Field>
-          <Field label="Currency" htmlFor="currency">
+          <Field label="Currency" htmlFor="currency" required>
             <Select id="currency" name="currency" defaultValue="NGN">
               <option value="NGN">₦ Naira (NGN)</option>
               <option value="USD">$ Dollar (USD)</option>
@@ -134,10 +181,10 @@ export function SignupForm() {
 
         <div className="grid grid-cols-2 gap-3">
           <Field label="Email" htmlFor="email" required>
-            <Input id="email" name="email" type="email" required autoComplete="email" placeholder="you@example.com" />
+            <Input id="email" name="email" type="email" required maxLength={160} autoComplete="email" placeholder="you@example.com" />
           </Field>
           <Field label="Password" htmlFor="password" required hint="Min. 6 characters">
-            <Input id="password" name="password" type="password" required minLength={6} autoComplete="new-password" />
+            <Input id="password" name="password" type="password" required minLength={6} maxLength={72} autoComplete="new-password" />
           </Field>
         </div>
 

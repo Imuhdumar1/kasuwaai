@@ -2,19 +2,12 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient, getBusiness } from "@/lib/supabase/server";
+import { cleanText, cleanNumber } from "@/lib/sanitize";
 
 export type ActionResult = { ok?: true; error?: string; id?: string };
 
-function s(fd: FormData, k: string): string | null {
-  const v = fd.get(k);
-  if (v == null) return null;
-  const t = String(v).trim();
-  return t === "" ? null : t;
-}
-function n(fd: FormData, k: string): number {
-  const v = Number(fd.get(k));
-  return Number.isFinite(v) ? v : 0;
-}
+const s = (fd: FormData, k: string, max = 500) => cleanText(fd.get(k), max);
+const n = (fd: FormData, k: string) => cleanNumber(fd.get(k), { min: 0, max: 1e12 });
 
 export async function saveProduct(fd: FormData): Promise<ActionResult> {
   const business = await getBusiness();

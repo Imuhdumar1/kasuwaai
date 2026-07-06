@@ -42,10 +42,12 @@ export function SettingsView({ business }: { business: Business }) {
   const router = useRouter();
 
   return (
-    <div className="animate-fade-up max-w-3xl">
+    <div className="animate-fade-up">
       <PageHeader title={t("nav.settings")} description={business.business_name} />
-      <div className="space-y-4">
-        <ProfileSection business={business} />
+      <div className="grid gap-4 lg:grid-cols-2 lg:items-start">
+        <div className="lg:col-span-2">
+          <ProfileSection business={business} />
+        </div>
         <PreferencesSection business={business} lang={lang} setLang={setLang} theme={theme} setTheme={setTheme} router={router} />
         <PasswordSection />
         <DataSection business={business} />
