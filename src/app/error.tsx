@@ -6,8 +6,11 @@ import { Logo } from "@/components/logo";
 
 export default function Error({ error, reset }: { error: Error & { digest?: string }; reset: () => void }) {
   useEffect(() => {
-    // Surfaces in the Vercel runtime logs for alerting/triage.
     console.error("App error:", error);
+    // Sentry is loaded on demand only when a DSN is configured (keeps it out of the bundle otherwise).
+    if (process.env.NEXT_PUBLIC_SENTRY_DSN) {
+      import("@sentry/nextjs").then((S) => S.captureException(error)).catch(() => {});
+    }
   }, [error]);
 
   return (

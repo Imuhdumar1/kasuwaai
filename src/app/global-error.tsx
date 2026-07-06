@@ -13,6 +13,9 @@ export default function GlobalError({
 }) {
   useEffect(() => {
     console.error("Global error:", error);
+    if (process.env.NEXT_PUBLIC_SENTRY_DSN) {
+      import("@sentry/nextjs").then((S) => S.captureException(error)).catch(() => {});
+    }
   }, [error]);
 
   return (
