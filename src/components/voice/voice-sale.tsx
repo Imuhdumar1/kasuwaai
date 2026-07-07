@@ -64,7 +64,6 @@ export function VoiceSale({
   const [rec, setRec] = useState<RecState>("idle");
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
   const [transcript, setTranscript] = useState("");
-  const [interim, setInterim] = useState("");
   const [recMode, setRecMode] = useState<RecMode>("mixed");
   const [parsed, setParsed] = useState<ParsedSale | null>(null);
   const [recError, setRecError] = useState<string | null>(null);
@@ -75,6 +74,7 @@ export function VoiceSale({
   const recogRef = useRef<SpeechRec | null>(null);
   const activeRef = useRef(false);
   const userStopRef = useRef(false);
+  const finalsRef = useRef<string[]>([]);
 
   const speechSupported = getSpeechRecognition() !== null;
 
@@ -95,32 +95,31 @@ export function VoiceSale({
     const recog = new SR();
     recog.lang = RECOG_LANG[recMode];
     recog.continuous = true;
-    recog.interimResults = true;
+    recog.interimResults = false; // only final results — no live text, fewer duplicate events
     userStopRef.current = false;
     activeRef.current = true;
+    finalsRef.current = [];
 
-    const clean = (s: string) => s.replace(/\s+/g, " ").trim();
+    const norm = (s: string) => s.replace(/\s+/g, " ").trim();
 
     recog.onresult = (e) => {
-      // Rebuild the transcript from THIS session's cumulative results on every
-      // event — no cross-session accumulation and no auto-restart, which is what
-      // made Chrome re-emit and duplicate the last phrase ("… , … , …").
-      let finalText = "";
-      let live = "";
-      for (let i = 0; i < e.results.length; i++) {
+      // Collect only NEW final results, skipping any that repeat the previous one
+      // (Chrome sometimes emits the same phrase multiple times → the "…, …, …" bug).
+      for (let i = e.resultIndex; i < e.results.length; i++) {
         const res = e.results[i];
-        const txt = res[0]?.transcript ?? "";
-        if (res.isFinal) finalText += txt + " ";
-        else live += txt + " ";
+        if (!res.isFinal) continue;
+        const txt = norm(res[0]?.transcript ?? "");
+        const last = finalsRef.current[finalsRef.current.length - 1] ?? "";
+        if (txt && txt.toLowerCase() !== last.toLowerCase()) finalsRef.current.push(txt);
       }
-      setInterim(clean(live));
-      setTranscript(clean(finalText + " " + live));
+      // The transcript is revealed only when speech stops — not while speaking.
     };
     recog.onend = () => {
-      // Session ended (user tapped stop, or the browser stopped on silence).
+      // Speech ended (user tapped stop, or the browser stopped on silence).
       activeRef.current = false;
-      setInterim("");
-      if (!userStopRef.current) setRec("recorded");
+      const text = norm(finalsRef.current.join(" "));
+      if (text) setTranscript(text);
+      setRec("recorded");
     };
     recog.onerror = (e) => {
       const err = e.error;
@@ -149,7 +148,6 @@ export function VoiceSale({
 
   async function startRecording() {
     setRecError(null);
-    setInterim("");
     setAudioUrl(null);
 
     if (typeof window !== "undefined" && !window.isSecureContext) {
@@ -228,7 +226,6 @@ export function VoiceSale({
     activeRef.current = false;
     streamRef.current?.getTracks().forEach((tk) => tk.stop());
     setAudioUrl(null);
-    setInterim("");
     chunksRef.current = [];
     setRec("idle");
   }
@@ -325,8 +322,10 @@ export function VoiceSale({
               {rec === "recorded" && "Recorded"}
             </div>
 
-            {rec === "recording" && interim && (
-              <p className="mt-2 max-w-xs text-center text-xs italic text-content-muted">{interim}</p>
+            {rec === "recording" && (
+              <p className="mt-2 max-w-xs text-center text-xs text-content-muted">
+                Speak your sale, then tap <span className="font-medium">Stop</span> — the transcript appears after.
+              </p>
             )}
 
             <div className="mt-4 flex flex-wrap justify-center gap-2">

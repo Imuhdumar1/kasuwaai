@@ -24,6 +24,7 @@ import { useI18n, useTheme } from "@/components/providers";
 import { cn } from "@/lib/utils";
 import { Avatar } from "@/components/ui";
 import { Logo } from "@/components/logo";
+import { IdleLogout } from "@/components/idle-logout";
 import type { Business } from "@/lib/types";
 
 const NAV: { href: string; icon: React.ElementType; key: string }[] = [
@@ -62,6 +63,8 @@ export function AppShell({ business, children }: { business: Business; children:
         <Topbar business={business} onMenu={() => setMobileOpen(true)} />
         <main className="flex-1 p-4 sm:p-6 lg:p-8">{children}</main>
       </div>
+
+      <IdleLogout />
     </div>
   );
 }

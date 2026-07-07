@@ -4,7 +4,7 @@ import { NextResponse, type NextRequest } from "next/server";
 // Signed-in users are bounced away from these to the dashboard.
 const REDIRECT_WHEN_AUTHED = ["/login", "/signup", "/forgot-password"];
 // Reachable without a session (reset-password relies on a temporary recovery session).
-const PUBLIC_PREFIXES = ["/reset-password", "/auth"];
+const PUBLIC_PREFIXES = ["/reset-password", "/auth", "/privacy", "/terms"];
 
 /** Refreshes the Supabase session cookie and enforces route protection. */
 export async function updateSession(request: NextRequest) {

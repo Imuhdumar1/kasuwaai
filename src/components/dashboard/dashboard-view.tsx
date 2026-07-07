@@ -25,6 +25,7 @@ import {
 import { useI18n } from "@/components/providers";
 import { StatCard } from "@/components/stat-card";
 import { PageHeader } from "@/components/page-header";
+import { OnboardingCard } from "@/components/dashboard/onboarding-card";
 import { Avatar, Badge, Card, StatusBadge } from "@/components/ui";
 import { ReminderDialog, type ReminderTarget } from "@/components/debts/reminder-dialog";
 import { formatMoney, formatMoneyCompact, formatNumber, formatDate, relativeDueLabel } from "@/lib/format";
@@ -81,6 +82,14 @@ export function DashboardView({
   return (
     <div className="animate-fade-up">
       <PageHeader title={t("dash.title")} description={businessName} />
+
+      {stats.transactionCount === 0 && (
+        <OnboardingCard
+          businessName={businessName}
+          hasProducts={counts.products > 0}
+          hasCustomers={counts.customers > 0}
+        />
+      )}
 
       {/* KPI grid */}
       <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
