@@ -91,6 +91,16 @@ export interface SaleItem {
   line_total: number;
 }
 
+export interface Expense {
+  id: string;
+  business_id: string;
+  amount: number;
+  category: string | null;
+  description: string | null;
+  expense_date: string;
+  created_at: string;
+}
+
 export interface Payment {
   id: string;
   business_id: string;
@@ -128,6 +138,19 @@ export const BUSINESS_CATEGORIES = [
   "Agriculture",
   "Services",
   "Wholesale",
+  "Other",
+] as const;
+
+export const EXPENSE_CATEGORIES = [
+  "Restocking / Inventory",
+  "Rent",
+  "Transport / Fuel",
+  "Salaries / Wages",
+  "Electricity / Power",
+  "Airtime / Data",
+  "Utilities",
+  "Repairs & Maintenance",
+  "Taxes & Levies",
   "Other",
 ] as const;
 

@@ -50,12 +50,18 @@ export interface DashboardStats {
   overdueCount: number;
   transactionCount: number;
   averageSale: number;
-  totalProfit: number;
+  totalProfit: number; // gross profit (revenue − cost of goods)
+  totalExpenses: number; // running costs recorded in Expenses
+  netProfit: number; // gross profit − expenses
   paymentCompletionRate: number; // %
   healthScore: number; // 0..100
 }
 
-export function computeDashboard(sales: SaleForCalc[], payments: Payment[]): DashboardStats {
+export function computeDashboard(
+  sales: SaleForCalc[],
+  payments: Payment[],
+  expenses: { amount: number }[] = [],
+): DashboardStats {
   const today = startOfToday();
   const week = startOfWeek();
   const month = startOfMonth();
@@ -85,6 +91,8 @@ export function computeDashboard(sales: SaleForCalc[], payments: Payment[]): Das
   }
 
   const paymentsReceived = payments.reduce((a, p) => a + p.amount, 0);
+  const totalExpenses = expenses.reduce((a, e) => a + Number(e.amount), 0);
+  const netProfit = totalProfit - totalExpenses;
   const transactionCount = sales.length;
   const averageSale = transactionCount ? totalRevenue / transactionCount : 0;
   const paymentCompletionRate = transactionCount ? (paidCount / transactionCount) * 100 : 0;
@@ -101,6 +109,8 @@ export function computeDashboard(sales: SaleForCalc[], payments: Payment[]): Das
     transactionCount,
     averageSale,
     totalProfit,
+    totalExpenses,
+    netProfit,
     paymentCompletionRate,
     healthScore: healthScore(sales, { totalRevenue, paymentsReceived, outstandingDebt, overdueDebt }),
   };

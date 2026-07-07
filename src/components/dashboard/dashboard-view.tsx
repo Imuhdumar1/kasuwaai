@@ -98,6 +98,14 @@ export function DashboardView({
         <StatCard label={t("dash.monthSales")} value={money(stats.monthSales)} icon={<TrendingUp className="h-4 w-4" />} />
         <StatCard label={t("dash.revenue")} value={money(stats.totalRevenue)} icon={<Wallet className="h-4 w-4" />} />
         <StatCard
+          label={t("dash.netProfit")}
+          value={money(stats.netProfit)}
+          icon={<TrendingUp className="h-4 w-4" />}
+          accent={stats.netProfit < 0 ? "danger" : "success"}
+          sub={`${t("dash.profit")} ${money(stats.totalProfit)} − ${t("dash.expenses")} ${money(stats.totalExpenses)}`}
+        />
+        <StatCard label={t("dash.expenses")} value={money(stats.totalExpenses)} icon={<Wallet className="h-4 w-4" />} />
+        <StatCard
           label={t("dash.outstanding")}
           value={money(stats.outstandingDebt)}
           icon={<Receipt className="h-4 w-4" />}

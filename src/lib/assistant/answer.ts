@@ -8,6 +8,8 @@ export type AssistantSnapshot = {
   monthSales: number;
   totalRevenue: number;
   totalProfit: number;
+  totalExpenses: number;
+  netProfit: number;
   paymentsReceived: number;
   outstandingDebt: number;
   customerCount: number;
@@ -123,13 +125,28 @@ export function answerQuestion(question: string, s: AssistantSnapshot, lang: Lan
     return ha ? `An karɓi jimillar ${m(s.paymentsReceived)}.` : `You've received ${m(s.paymentsReceived)} in payments so far.`;
   }
 
-  // Profit / margin
+  // Expenses (money spent running the business)
+  if (has(q, "expense", "expenses", "spend", "spent", "running cost", "overhead", "kashe", "kashewa", "kuɗin kashewa")) {
+    return ha
+      ? `Jimillar kashe kuɗin ka: ${m(s.totalExpenses)}. Ribar gaskiya bayan kashe kuɗi: ${m(s.netProfit)}.`
+      : `Your total expenses are ${m(s.totalExpenses)}. Net profit after expenses is ${m(s.netProfit)}.`;
+  }
+
+  // Net / real profit (after expenses) — check before the gross-profit branch.
+  if (has(q, "net profit", "real profit", "after expenses", "take home", "actual profit", "ribar gaskiya", "ainihin riba")) {
+    if (noData) return notEnough;
+    return ha
+      ? `Ribar gaskiya (bayan kashe kuɗi): ${m(s.netProfit)} — ribar kaya ${m(s.totalProfit)} debe kashe kuɗi ${m(s.totalExpenses)}.`
+      : `Your net profit is ${m(s.netProfit)} — that's ${m(s.totalProfit)} gross profit minus ${m(s.totalExpenses)} in expenses.`;
+  }
+
+  // Profit / margin (gross)
   if (has(q, "profit", "margin", "riba", "ribar", "how much am i making", "making")) {
     if (noData) return notEnough;
     const margin = s.totalRevenue > 0 ? Math.round((s.totalProfit / s.totalRevenue) * 100) : 0;
     return ha
-      ? `Ribar ka jimilla ${m(s.totalProfit)} — kimanin kashi ${margin}% na tallace-tallacen ${m(s.totalRevenue)}.`
-      : `Your total profit is ${m(s.totalProfit)} — about a ${margin}% margin on ${m(s.totalRevenue)} in sales.`;
+      ? `Ribar kaya jimilla ${m(s.totalProfit)} — kimanin kashi ${margin}% na tallace-tallacen ${m(s.totalRevenue)}. Bayan kashe kuɗi ${m(s.totalExpenses)}, ribar gaskiya ${m(s.netProfit)}.`
+      : `Your gross profit is ${m(s.totalProfit)} — about a ${margin}% margin on ${m(s.totalRevenue)} in sales. After ${m(s.totalExpenses)} in expenses, your net profit is ${m(s.netProfit)}.`;
   }
 
   // Counts (how many customers / products / sales)

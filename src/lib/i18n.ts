@@ -43,6 +43,7 @@ const en: Dict = {
   "nav.sales": "Sales",
   "nav.debts": "Debts",
   "nav.payments": "Payments",
+  "nav.expenses": "Expenses",
   "nav.voice": "Voice Sale",
   "nav.assistant": "AI Assistant",
   "nav.reports": "Reports",
@@ -80,6 +81,9 @@ const en: Dict = {
   "dash.weekSales": "This Week",
   "dash.monthSales": "This Month",
   "dash.revenue": "Total Revenue",
+  "dash.profit": "Gross Profit",
+  "dash.expenses": "Total Expenses",
+  "dash.netProfit": "Net Profit",
   "dash.outstanding": "Outstanding Debt",
   "dash.payments": "Payments Received",
   "dash.customers": "Customers",
@@ -103,6 +107,8 @@ const en: Dict = {
   "empty.sales.desc": "Record a sale manually or by voice.",
   "empty.debts.title": "No debts",
   "empty.debts.desc": "Unpaid and partially paid sales will appear here.",
+  "empty.expenses.title": "No expenses yet",
+  "empty.expenses.desc": "Record your running costs (rent, transport, restocking) to see your real net profit.",
 
   // Shared column / field labels
   "f.name": "Name",
@@ -190,6 +196,20 @@ const en: Dict = {
   "pay.subtitle": "Money received from customers.",
   "pay.for": "For",
   "pay.overpay": "Payment cannot be more than the balance.",
+
+  // Expenses
+  "exp.add": "Add expense",
+  "exp.edit": "Edit expense",
+  "exp.search": "Search expenses…",
+  "exp.amount": "Amount",
+  "exp.category": "Category",
+  "exp.date": "Date",
+  "exp.description": "Description",
+  "exp.descPlaceholder": "e.g. Transport to market, restocking rice",
+  "exp.subtitle": "Track your running costs so your profit is the real profit.",
+  "exp.thisMonth": "This month",
+  "exp.shownTotal": "Shown total",
+  "exp.confirmDelete": "Delete this expense? This cannot be undone.",
 };
 
 const ha: Dict = {
@@ -221,6 +241,7 @@ const ha: Dict = {
   "nav.sales": "Tallace-tallace",
   "nav.debts": "Basussuka",
   "nav.payments": "Biyan kuɗi",
+  "nav.expenses": "Kashe kuɗi",
   "nav.voice": "Sayarwa da Murya",
   "nav.assistant": "Mataimakin AI",
   "nav.reports": "Rahotanni",
@@ -255,6 +276,9 @@ const ha: Dict = {
   "dash.weekSales": "Wannan Mako",
   "dash.monthSales": "Wannan Wata",
   "dash.revenue": "Jimillar Kuɗin Shiga",
+  "dash.profit": "Ribar Kaya",
+  "dash.expenses": "Jimillar Kashe kuɗi",
+  "dash.netProfit": "Ribar Gaskiya",
   "dash.outstanding": "Bashin da ake bin ka",
   "dash.payments": "Kuɗin da aka Karɓa",
   "dash.customers": "Abokan ciniki",
@@ -277,6 +301,8 @@ const ha: Dict = {
   "empty.sales.desc": "Yi rikodin sayarwa da hannu ko da murya.",
   "empty.debts.title": "Babu basussuka",
   "empty.debts.desc": "Tallace-tallacen da ba a biya ba za su bayyana anan.",
+  "empty.expenses.title": "Babu kashe kuɗi tukuna",
+  "empty.expenses.desc": "Yi rikodin kuɗin da kake kashewa (haya, sufuri, sake sayo kaya) don ganin ribar ka ta gaskiya.",
 
   "f.name": "Suna",
   "f.phone": "Waya",
@@ -346,6 +372,19 @@ const ha: Dict = {
   "pay.date": "Ranar biya",
   "pay.subtitle": "Kuɗin da aka karɓa daga abokan ciniki.",
   "pay.overpay": "Biya ba zai iya wuce sauran bashi ba.",
+
+  "exp.add": "Ƙara kashe kuɗi",
+  "exp.edit": "Gyara kashe kuɗi",
+  "exp.search": "Nemo kashe kuɗi…",
+  "exp.amount": "Adadi",
+  "exp.category": "Rukuni",
+  "exp.date": "Kwanan wata",
+  "exp.description": "Bayani",
+  "exp.descPlaceholder": "misali: Sufuri zuwa kasuwa, sake sayo shinkafa",
+  "exp.subtitle": "Bi diddigin kuɗin da kake kashewa domin ribar ka ta zama ta gaskiya.",
+  "exp.thisMonth": "Wannan wata",
+  "exp.shownTotal": "Jimillar da aka nuna",
+  "exp.confirmDelete": "A share wannan kashe kuɗi? Ba za a iya dawo da shi ba.",
 };
 
 export const dictionaries: Record<Lang, Dict> = { en, ha };

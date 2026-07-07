@@ -17,7 +17,7 @@ export default async function DashboardPage() {
   const business = (await getBusiness())!;
   const supabase = createClient();
 
-  const [salesRes, paymentsRes, custCount, prodCount] = await Promise.all([
+  const [salesRes, paymentsRes, expensesRes, custCount, prodCount] = await Promise.all([
     supabase
       .from("sales")
       .select("*, sale_items(*), customer:customers(id, full_name, phone, whatsapp)")
@@ -28,6 +28,7 @@ export default async function DashboardPage() {
       .select("*, customer:customers(full_name)")
       .eq("business_id", business.id)
       .order("payment_date", { ascending: false }),
+    supabase.from("expenses").select("amount").eq("business_id", business.id),
     supabase
       .from("customers")
       .select("id", { count: "exact", head: true })
@@ -42,8 +43,9 @@ export default async function DashboardPage() {
 
   const sales = (salesRes.data ?? []) as SaleForCalc[];
   const payments = (paymentsRes.data ?? []) as (Payment & { customer?: { full_name: string } | null })[];
+  const expenses = (expensesRes.data ?? []) as { amount: number }[];
 
-  const stats = computeDashboard(sales, payments);
+  const stats = computeDashboard(sales, payments, expenses);
   const trend = salesTrend(sales, 7);
   const tops = topCustomers(sales, 5);
   const best = bestProducts(sales, 5);

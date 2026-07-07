@@ -21,7 +21,8 @@ type Lang = "en" | "ha";
 // string is read from here — nothing on this page is hard-coded to English.
 const COPY = {
   en: {
-    nav: { login: "Log in", getStarted: "Get started" },
+    nav: { login: "Log in", getStarted: "Get started", dashboard: "Dashboard" },
+    goDashboard: "Go to dashboard",
     badge: "Sales · Debts · Reminders · Voice",
     heroTitle1: "Stop forgetting.",
     heroTitle2: "Start tracking.",
@@ -60,7 +61,8 @@ const COPY = {
     madeFor: "Made for business owners. 🇳🇬",
   },
   ha: {
-    nav: { login: "Shiga", getStarted: "Fara" },
+    nav: { login: "Shiga", getStarted: "Fara", dashboard: "Dashbo" },
+    goDashboard: "Zuwa dashbo",
     badge: "Sayarwa · Bashi · Tuni · Murya",
     heroTitle1: "Ka daina mantawa.",
     heroTitle2: "Ka fara rikodi.",
@@ -100,7 +102,7 @@ const COPY = {
   },
 } satisfies Record<Lang, unknown>;
 
-export function Landing() {
+export function Landing({ authed = false }: { authed?: boolean }) {
   const [lang, setLang] = useState<Lang>("en");
   const t = COPY[lang];
   const year = new Date().getFullYear();
@@ -127,16 +129,27 @@ export function Landing() {
               <span className="hidden sm:inline">{lang === "en" ? "Hausa" : "English"}</span>
               <span className="sm:hidden">{lang === "en" ? "HA" : "EN"}</span>
             </button>
-            {/* Log in is available in the hero on mobile; hidden here to prevent overflow. */}
-            <Link href="/login" className="hidden shrink-0 rounded-lg px-3 py-2 text-sm font-medium text-content-muted hover:text-content sm:block">
-              {t.nav.login}
-            </Link>
-            <Link
-              href="/signup"
-              className="shrink-0 rounded-lg bg-ink px-3 py-2 text-sm font-semibold text-paper transition-all hover:bg-ink/90 hover:shadow-soft sm:px-4"
-            >
-              {t.nav.getStarted}
-            </Link>
+            {authed ? (
+              <Link
+                href="/dashboard"
+                className="shrink-0 rounded-lg bg-ink px-3 py-2 text-sm font-semibold text-paper transition-all hover:bg-ink/90 hover:shadow-soft sm:px-4"
+              >
+                {t.nav.dashboard}
+              </Link>
+            ) : (
+              <>
+                {/* Log in is available in the hero on mobile; hidden here to prevent overflow. */}
+                <Link href="/login" className="hidden shrink-0 rounded-lg px-3 py-2 text-sm font-medium text-content-muted hover:text-content sm:block">
+                  {t.nav.login}
+                </Link>
+                <Link
+                  href="/signup"
+                  className="shrink-0 rounded-lg bg-ink px-3 py-2 text-sm font-semibold text-paper transition-all hover:bg-ink/90 hover:shadow-soft sm:px-4"
+                >
+                  {t.nav.getStarted}
+                </Link>
+              </>
+            )}
           </nav>
         </div>
       </header>
@@ -162,19 +175,31 @@ export function Landing() {
             </Reveal>
             <Reveal delay={240}>
               <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
-                <Link
-                  href="/signup"
-                  className="group inline-flex w-full items-center justify-center gap-2 rounded-xl bg-lime px-6 py-3.5 font-semibold text-ink transition-all hover:bg-lime-bright hover:shadow-soft sm:w-auto"
-                >
-                  {t.ctaFree}
-                  <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
-                </Link>
-                <Link
-                  href="/login"
-                  className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-line bg-surface px-6 py-3.5 font-semibold text-content transition-colors hover:bg-surface-2 sm:w-auto"
-                >
-                  {t.login}
-                </Link>
+                {authed ? (
+                  <Link
+                    href="/dashboard"
+                    className="group inline-flex w-full items-center justify-center gap-2 rounded-xl bg-lime px-6 py-3.5 font-semibold text-ink transition-all hover:bg-lime-bright hover:shadow-soft sm:w-auto"
+                  >
+                    {t.goDashboard}
+                    <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
+                  </Link>
+                ) : (
+                  <>
+                    <Link
+                      href="/signup"
+                      className="group inline-flex w-full items-center justify-center gap-2 rounded-xl bg-lime px-6 py-3.5 font-semibold text-ink transition-all hover:bg-lime-bright hover:shadow-soft sm:w-auto"
+                    >
+                      {t.ctaFree}
+                      <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
+                    </Link>
+                    <Link
+                      href="/login"
+                      className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-line bg-surface px-6 py-3.5 font-semibold text-content transition-colors hover:bg-surface-2 sm:w-auto"
+                    >
+                      {t.login}
+                    </Link>
+                  </>
+                )}
               </div>
             </Reveal>
             <Reveal delay={320}>
@@ -240,10 +265,10 @@ export function Landing() {
             <h2 className="relative mx-auto max-w-2xl font-display text-3xl font-extrabold tracking-tight sm:text-4xl">{t.finalTitle}</h2>
             <p className="relative mx-auto mt-3 max-w-xl text-paper/70">{t.finalBody}</p>
             <Link
-              href="/signup"
+              href={authed ? "/dashboard" : "/signup"}
               className="group relative mt-8 inline-flex items-center justify-center gap-2 rounded-xl bg-lime px-6 py-3.5 font-semibold text-ink transition-all hover:bg-lime-bright"
             >
-              {t.finalCta}
+              {authed ? t.goDashboard : t.finalCta}
               <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
             </Link>
           </div>

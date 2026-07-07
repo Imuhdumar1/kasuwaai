@@ -8,7 +8,7 @@
  * It can also be toggled from Vercel without a code change by setting the
  * environment variable NEXT_PUBLIC_MAINTENANCE_MODE to "true" (then redeploy).
  */
-export const MAINTENANCE_MODE = true;
+export const MAINTENANCE_MODE = false;
 
 export const MAINTENANCE_MESSAGE =
   "KasuwaAI is under maintenance while we roll out improvements. We'll be back shortly — please check again in a few minutes.";
