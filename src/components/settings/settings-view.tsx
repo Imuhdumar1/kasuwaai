@@ -2,11 +2,12 @@
 
 import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Building2, SlidersHorizontal, Lock, Database, TriangleAlert, Check } from "lucide-react";
+import { Building2, SlidersHorizontal, Lock, Database, TriangleAlert, Check, History } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import { Button, Card, Field, Input, Select, Spinner } from "@/components/ui";
 import { useI18n, useTheme } from "@/components/providers";
 import { useToast } from "@/components/toast";
+import { ActivityLog, type ActivityRow } from "@/components/history/activity-log";
 import { createClient } from "@/lib/supabase/client";
 import { downloadCSV } from "@/lib/csv";
 import { updateBusiness, updatePreferences, deleteAllData } from "@/app/(app)/settings/actions";
@@ -37,7 +38,7 @@ function Saved({ show }: { show: boolean }) {
   );
 }
 
-export function SettingsView({ business }: { business: Business }) {
+export function SettingsView({ business, activity }: { business: Business; activity: ActivityRow[] }) {
   const { t, lang, setLang } = useI18n();
   const { theme, setTheme } = useTheme();
   const router = useRouter();
@@ -52,6 +53,11 @@ export function SettingsView({ business }: { business: Business }) {
         <PreferencesSection business={business} lang={lang} setLang={setLang} theme={theme} setTheme={setTheme} router={router} />
         <PasswordSection />
         <DataSection business={business} />
+        <div className="lg:col-span-2">
+          <Section icon={<History className="h-5 w-5" />} title={t("nav.history")} description={t("history.subtitle")}>
+            <ActivityLog rows={activity} />
+          </Section>
+        </div>
       </div>
     </div>
   );
