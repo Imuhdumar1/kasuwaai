@@ -12,7 +12,7 @@ import {
   ArrowRight,
   Check,
 } from "lucide-react";
-import { Logo, LogoMark } from "@/components/logo";
+import { LogoMark } from "@/components/logo";
 import { Reveal } from "@/components/reveal";
 
 type Lang = "en" | "ha";
@@ -109,24 +109,31 @@ export function Landing() {
     <div className="min-h-screen bg-bg text-content">
       {/* Nav */}
       <header className="sticky top-0 z-30 border-b border-line bg-bg">
-        <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4 sm:px-6">
-          <Logo />
-          <nav className="flex items-center gap-2 sm:gap-3">
+        <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-2 px-4 sm:px-6">
+          {/* Brand: smaller wordmark on mobile so the nav has room and never overflows. */}
+          <span className="flex shrink-0 items-center gap-2 font-display font-extrabold tracking-tight sm:gap-2.5">
+            <LogoMark className="h-7 w-7 shrink-0" />
+            <span className="text-base sm:text-lg">KasuwaAI</span>
+          </span>
+          <nav className="flex min-w-0 items-center gap-1.5 sm:gap-3">
             <button
               type="button"
               onClick={() => setLang((l) => (l === "en" ? "ha" : "en"))}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-line px-3 py-2 text-sm font-medium text-content-muted transition-colors hover:text-content"
+              className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-line px-2.5 py-2 text-sm font-medium text-content-muted transition-colors hover:text-content sm:px-3"
               aria-label="Switch language"
             >
-              <Languages className="h-4 w-4" />
-              {lang === "en" ? "Hausa" : "English"}
+              <Languages className="h-4 w-4 shrink-0" />
+              {/* Full word on desktop, compact 2-letter code on mobile to save space. */}
+              <span className="hidden sm:inline">{lang === "en" ? "Hausa" : "English"}</span>
+              <span className="sm:hidden">{lang === "en" ? "HA" : "EN"}</span>
             </button>
-            <Link href="/login" className="rounded-lg px-3 py-2 text-sm font-medium text-content-muted hover:text-content">
+            {/* Log in is available in the hero on mobile; hidden here to prevent overflow. */}
+            <Link href="/login" className="hidden shrink-0 rounded-lg px-3 py-2 text-sm font-medium text-content-muted hover:text-content sm:block">
               {t.nav.login}
             </Link>
             <Link
               href="/signup"
-              className="rounded-lg bg-ink px-4 py-2 text-sm font-semibold text-paper transition-all hover:bg-ink/90 hover:shadow-soft"
+              className="shrink-0 rounded-lg bg-ink px-3 py-2 text-sm font-semibold text-paper transition-all hover:bg-ink/90 hover:shadow-soft sm:px-4"
             >
               {t.nav.getStarted}
             </Link>
