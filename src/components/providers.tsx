@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import { Lang, translate } from "@/lib/i18n";
+import { ToastProvider } from "@/components/toast";
 
 /* ─── i18n context ────────────────────────────────────────────────────── */
 type I18nValue = {
@@ -84,7 +85,9 @@ export function Providers({
 
   return (
     <ThemeContext.Provider value={themeValue}>
-      <I18nContext.Provider value={i18n}>{children}</I18nContext.Provider>
+      <I18nContext.Provider value={i18n}>
+        <ToastProvider>{children}</ToastProvider>
+      </I18nContext.Provider>
     </ThemeContext.Provider>
   );
 }

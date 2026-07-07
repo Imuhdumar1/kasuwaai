@@ -7,6 +7,7 @@ import { ArrowLeft, CreditCard, Trash2, User, Share2, Check } from "lucide-react
 import { Button, Card, StatusBadge } from "@/components/ui";
 import { PaymentForm } from "@/components/payments/payment-form";
 import { useI18n } from "@/components/providers";
+import { useToast } from "@/components/toast";
 import { formatMoney, formatDate, formatDateTime, relativeDueLabel } from "@/lib/format";
 import { buildReceipt } from "@/lib/receipt";
 import { deleteSale } from "@/app/(app)/sales/actions";
@@ -28,15 +29,26 @@ export function SaleDetail({
   businessName: string;
 }) {
   const { t } = useI18n();
+  const { toast, confirm } = useToast();
   const router = useRouter();
   const [payOpen, setPayOpen] = useState(false);
   const [shared, setShared] = useState(false);
   const [, start] = useTransition();
 
-  function remove() {
-    if (!confirm("Delete this sale and its payments? This cannot be undone.")) return;
+  async function remove() {
+    const ok = await confirm({
+      title: t("common.sure"),
+      message: t("confirm.deleteSale"),
+      confirmLabel: t("common.delete"),
+      danger: true,
+    });
+    if (!ok) return;
     start(async () => {
-      await deleteSale(sale.id);
+      const res = await deleteSale(sale.id);
+      if (res?.error) {
+        toast({ message: res.error, tone: "error" });
+        return;
+      }
       router.push("/sales");
       router.refresh();
     });

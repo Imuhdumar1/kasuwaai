@@ -7,12 +7,14 @@ import { PageHeader } from "@/components/page-header";
 import { Badge, Button, EmptyState, Input, Select } from "@/components/ui";
 import { ExpenseForm } from "@/components/expenses/expense-form";
 import { useI18n } from "@/components/providers";
+import { useToast } from "@/components/toast";
 import { formatMoney, formatDate } from "@/lib/format";
 import { deleteExpense } from "@/app/(app)/expenses/actions";
 import { EXPENSE_CATEGORIES, type Expense } from "@/lib/types";
 
 export function ExpensesView({ rows, currency }: { rows: Expense[]; currency: string }) {
   const { t } = useI18n();
+  const { toast, confirm } = useToast();
   const router = useRouter();
   const [, start] = useTransition();
   const [query, setQuery] = useState("");
@@ -44,11 +46,22 @@ export function ExpensesView({ rows, currency }: { rows: Expense[]; currency: st
     setEditing(e);
     setFormOpen(true);
   }
-  function remove(e: Expense) {
-    if (!confirm(t("exp.confirmDelete"))) return;
+  async function remove(e: Expense) {
+    const ok = await confirm({
+      title: t("common.sure"),
+      message: t("exp.confirmDelete"),
+      confirmLabel: t("common.delete"),
+      danger: true,
+    });
+    if (!ok) return;
     start(async () => {
-      await deleteExpense(e.id);
+      const res = await deleteExpense(e.id);
+      if (res?.error) {
+        toast({ message: res.error, tone: "error" });
+        return;
+      }
       router.refresh();
+      toast({ message: t("toast.deleted"), tone: "success" });
     });
   }
 

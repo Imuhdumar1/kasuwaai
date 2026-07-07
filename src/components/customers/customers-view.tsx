@@ -8,6 +8,7 @@ import { PageHeader } from "@/components/page-header";
 import { Avatar, Badge, Button, EmptyState, Input, Select } from "@/components/ui";
 import { CustomerForm } from "@/components/customers/customer-form";
 import { useI18n } from "@/components/providers";
+import { useToast } from "@/components/toast";
 import { formatMoney } from "@/lib/format";
 import { setCustomerArchived, deleteCustomer } from "@/app/(app)/customers/actions";
 import type { Customer } from "@/lib/types";
@@ -16,6 +17,7 @@ export type CustomerRow = Customer & { owing: number; totalSpent: number; txCoun
 
 export function CustomersView({ rows, currency }: { rows: CustomerRow[]; currency: string }) {
   const { t } = useI18n();
+  const { toast, confirm } = useToast();
   const router = useRouter();
   const [, start] = useTransition();
   const [query, setQuery] = useState("");
@@ -50,11 +52,22 @@ export function CustomersView({ rows, currency }: { rows: CustomerRow[]; currenc
       router.refresh();
     });
   }
-  function remove(c: CustomerRow) {
-    if (!confirm(`Delete ${c.full_name}? This cannot be undone.`)) return;
+  async function remove(c: CustomerRow) {
+    const ok = await confirm({
+      title: t("common.sure"),
+      message: t("confirm.deleteCustomer", { name: c.full_name }),
+      confirmLabel: t("common.delete"),
+      danger: true,
+    });
+    if (!ok) return;
     start(async () => {
-      await deleteCustomer(c.id);
+      const res = await deleteCustomer(c.id);
+      if (res?.error) {
+        toast({ message: res.error, tone: "error" });
+        return;
+      }
       router.refresh();
+      toast({ message: t("toast.deleted"), tone: "success" });
     });
   }
 

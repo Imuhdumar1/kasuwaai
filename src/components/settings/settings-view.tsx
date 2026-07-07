@@ -6,6 +6,7 @@ import { Building2, SlidersHorizontal, Lock, Database, TriangleAlert, Check } fr
 import { PageHeader } from "@/components/page-header";
 import { Button, Card, Field, Input, Select, Spinner } from "@/components/ui";
 import { useI18n, useTheme } from "@/components/providers";
+import { useToast } from "@/components/toast";
 import { createClient } from "@/lib/supabase/client";
 import { downloadCSV } from "@/lib/csv";
 import { updateBusiness, updatePreferences, deleteAllData } from "@/app/(app)/settings/actions";
@@ -266,6 +267,8 @@ function PasswordSection() {
 }
 
 function DataSection({ business }: { business: Business }) {
+  const { t } = useI18n();
+  const { toast, confirm } = useToast();
   const router = useRouter();
   const [exporting, setExporting] = useState(false);
   const [deleting, startDelete] = useTransition();
@@ -296,10 +299,20 @@ function DataSection({ business }: { business: Business }) {
     downloadCSV(`${business.business_name}-customers`, ["Name", "Phone", "Credit limit"], (data ?? []).map((c) => [c.full_name, c.phone ?? "", c.credit_limit]));
   }
 
-  function removeAll() {
-    if (!confirm("Delete ALL your business data (customers, products, sales, payments)? This cannot be undone.")) return;
+  async function removeAll() {
+    const ok = await confirm({
+      title: t("common.sure"),
+      message: t("confirm.wipeAll"),
+      confirmLabel: t("common.delete"),
+      danger: true,
+    });
+    if (!ok) return;
     startDelete(async () => {
-      await deleteAllData();
+      const res = await deleteAllData();
+      if (res?.error) {
+        toast({ message: res.error, tone: "error" });
+        return;
+      }
       await createClient().auth.signOut();
       router.replace("/login");
     });

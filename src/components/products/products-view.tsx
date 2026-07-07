@@ -7,6 +7,7 @@ import { PageHeader } from "@/components/page-header";
 import { Badge, Button, EmptyState, Input, Select } from "@/components/ui";
 import { ProductForm } from "@/components/products/product-form";
 import { useI18n } from "@/components/providers";
+import { useToast } from "@/components/toast";
 import { formatMoney, formatNumber } from "@/lib/format";
 import { setProductArchived, deleteProduct } from "@/app/(app)/products/actions";
 import type { Product } from "@/lib/types";
@@ -15,6 +16,7 @@ export type ProductRow = Product & { soldQty: number; revenue: number };
 
 export function ProductsView({ rows, currency }: { rows: ProductRow[]; currency: string }) {
   const { t } = useI18n();
+  const { toast, confirm } = useToast();
   const router = useRouter();
   const [, start] = useTransition();
   const [query, setQuery] = useState("");
@@ -45,11 +47,22 @@ export function ProductsView({ rows, currency }: { rows: ProductRow[]; currency:
       router.refresh();
     });
   }
-  function remove(p: ProductRow) {
-    if (!confirm(`Delete ${p.name}? This cannot be undone.`)) return;
+  async function remove(p: ProductRow) {
+    const ok = await confirm({
+      title: t("common.sure"),
+      message: t("confirm.deleteProduct", { name: p.name }),
+      confirmLabel: t("common.delete"),
+      danger: true,
+    });
+    if (!ok) return;
     start(async () => {
-      await deleteProduct(p.id);
+      const res = await deleteProduct(p.id);
+      if (res?.error) {
+        toast({ message: res.error, tone: "error" });
+        return;
+      }
       router.refresh();
+      toast({ message: t("toast.deleted"), tone: "success" });
     });
   }
 

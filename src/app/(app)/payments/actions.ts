@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createClient, getBusiness } from "@/lib/supabase/server";
 
-export type ActionResult = { ok?: true; error?: string };
+export type ActionResult = { ok?: true; error?: string; paymentId?: string };
 
 export type PaymentInput = {
   sale_id: string;
@@ -35,16 +35,20 @@ export async function recordPayment(input: PaymentInput): Promise<ActionResult> 
     return { error: "Payment cannot be more than the outstanding balance." };
   }
 
-  const { error } = await supabase.from("payments").insert({
-    business_id: business.id,
-    sale_id: sale.id,
-    customer_id: sale.customer_id,
-    amount,
-    method: input.method || "Cash",
-    reference_number: input.reference_number,
-    payment_date: input.payment_date || new Date().toISOString(),
-    notes: input.notes,
-  });
+  const { data: inserted, error } = await supabase
+    .from("payments")
+    .insert({
+      business_id: business.id,
+      sale_id: sale.id,
+      customer_id: sale.customer_id,
+      amount,
+      method: input.method || "Cash",
+      reference_number: input.reference_number,
+      payment_date: input.payment_date || new Date().toISOString(),
+      notes: input.notes,
+    })
+    .select("id")
+    .single();
   if (error) return { error: error.message };
 
   revalidatePath("/debts");
@@ -53,7 +57,7 @@ export async function recordPayment(input: PaymentInput): Promise<ActionResult> 
   revalidatePath("/sales");
   revalidatePath(`/sales/${sale.id}`);
   if (sale.customer_id) revalidatePath(`/customers/${sale.customer_id}`);
-  return { ok: true };
+  return { ok: true, paymentId: inserted?.id };
 }
 
 export async function deletePayment(id: string): Promise<ActionResult> {

@@ -35,6 +35,13 @@ const en: Dict = {
   "common.no": "No",
   "common.close": "Close",
   "common.viewAll": "View all",
+  "common.undo": "Undo",
+  "common.sure": "Are you sure?",
+  "toast.deleted": "Deleted",
+  "confirm.deleteCustomer": "Delete {name}? This cannot be undone.",
+  "confirm.deleteProduct": "Delete {name}? This cannot be undone.",
+  "confirm.deleteSale": "Delete this sale and its payments? This cannot be undone.",
+  "confirm.wipeAll": "Delete ALL your business data (customers, products, sales, payments)? This cannot be undone.",
 
   // Nav
   "nav.dashboard": "Dashboard",
@@ -195,6 +202,8 @@ const en: Dict = {
   "debt.settledOn": "Settled",
   "debt.noSettled": "No settled debts yet",
   "debt.noSettledDesc": "Credit sales you've fully collected will appear here.",
+  "debt.settledToast": "{name}'s debt settled",
+  "debt.settleUndone": "Settle undone",
 
   // Payments
   "pay.record": "Record payment",
@@ -243,6 +252,13 @@ const ha: Dict = {
   "common.no": "A'a",
   "common.close": "Rufe",
   "common.viewAll": "Duba duka",
+  "common.undo": "Janye",
+  "common.sure": "Ka tabbata?",
+  "toast.deleted": "An share",
+  "confirm.deleteCustomer": "A share {name}? Ba za a iya dawo da shi ba.",
+  "confirm.deleteProduct": "A share {name}? Ba za a iya dawo da shi ba.",
+  "confirm.deleteSale": "A share wannan sayarwa da biyanta? Ba za a iya dawo da shi ba.",
+  "confirm.wipeAll": "A share DUKA bayanan kasuwancinka (abokan ciniki, kayayyaki, tallace-tallace, biyan kuɗi)? Ba za a iya dawo da shi ba.",
 
   "nav.dashboard": "Dashbo",
   "nav.customers": "Abokan ciniki",
@@ -382,6 +398,8 @@ const ha: Dict = {
   "debt.settledOn": "An biya",
   "debt.noSettled": "Babu bashin da aka biya tukuna",
   "debt.noSettledDesc": "Sayarwar bashi da ka karɓo gaba ɗaya za su bayyana anan.",
+  "debt.settledToast": "An biya bashin {name}",
+  "debt.settleUndone": "An janye biyan",
 
   "pay.record": "Yi rikodin biya",
   "pay.amount": "Adadin biya",

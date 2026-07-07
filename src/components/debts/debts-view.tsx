@@ -10,9 +10,10 @@ import { StatCard } from "@/components/stat-card";
 import { PaymentForm, type PayableSale } from "@/components/payments/payment-form";
 import { ReminderDialog, type ReminderTarget } from "@/components/debts/reminder-dialog";
 import { useI18n } from "@/components/providers";
+import { useToast } from "@/components/toast";
 import { formatMoney, formatDate, relativeDueLabel } from "@/lib/format";
 import { dueBucket } from "@/lib/calc";
-import { recordPayment } from "@/app/(app)/payments/actions";
+import { recordPayment, deletePayment } from "@/app/(app)/payments/actions";
 import { cn } from "@/lib/utils";
 import type { DueBucket } from "@/lib/reminders";
 
@@ -55,6 +56,7 @@ export function DebtsView({
   businessName: string;
 }) {
   const { t } = useI18n();
+  const { toast } = useToast();
   const router = useRouter();
   const [pending, start] = useTransition();
   const [settlingId, setSettlingId] = useState<string | null>(null);
@@ -63,10 +65,21 @@ export function DebtsView({
   const [payFor, setPayFor] = useState<PayableSale | null>(null);
   const [remindFor, setRemindFor] = useState<ReminderTarget | null>(null);
 
-  // One-click: record a payment for the full outstanding balance (debt fully paid).
+  function undoSettle(paymentId: string) {
+    start(async () => {
+      const res = await deletePayment(paymentId);
+      if (res.error) {
+        toast({ message: res.error, tone: "error" });
+        return;
+      }
+      router.refresh();
+      toast({ message: t("debt.settleUndone"), tone: "info" });
+    });
+  }
+
+  // One-click: record a payment for the full outstanding balance (debt fully paid),
+  // then offer Undo (which deletes that payment) instead of a blocking confirm.
   function settleInFull(r: DebtRow) {
-    const msg = t("debt.confirmSettle", { amount: formatMoney(r.outstanding_balance, currency) });
-    if (!confirm(msg)) return;
     setSettlingId(r.id);
     start(async () => {
       const res = await recordPayment({
@@ -79,10 +92,17 @@ export function DebtsView({
       });
       setSettlingId(null);
       if (res.error) {
-        alert(res.error);
+        toast({ message: res.error, tone: "error" });
         return;
       }
       router.refresh();
+      const paymentId = res.paymentId;
+      toast({
+        message: t("debt.settledToast", { name: r.customer_name ?? t("sale.walkin") }),
+        tone: "success",
+        actionLabel: paymentId ? t("common.undo") : undefined,
+        onAction: paymentId ? () => undoSettle(paymentId) : undefined,
+      });
     });
   }
 
