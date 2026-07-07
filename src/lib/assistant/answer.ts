@@ -19,6 +19,16 @@ export type AssistantSnapshot = {
   topCustomer: { name: string; total: number } | null;
   bestProduct: { name: string; qty: number; revenue: number } | null;
   recommendations: string[];
+  business: {
+    name: string;
+    owner: string | null;
+    phone: string | null;
+    email: string | null;
+    category: string | null;
+    market: string | null;
+    state: string | null;
+    lga: string | null;
+  };
 };
 
 const has = (q: string, ...words: string[]) => words.some((w) => q.includes(w));
@@ -36,6 +46,37 @@ export function answerQuestion(question: string, s: AssistantSnapshot, lang: Lan
   const notEnough = ha
     ? "Babu isassun bayanan kasuwanci tukuna. Yi rikodin sayarwa don farawa."
     : "There isn't enough business data yet. Record a sale to get started.";
+
+  const b = s.business;
+
+  // ── Business profile (answerable even before any sales) ──
+  if (has(q, "business name", "name of my business", "shop name", "my business call", "sunan kasuwanci", "sunan shago")) {
+    return ha ? `Sunan kasuwancinka: ${b.name}.` : `Your business name is ${b.name}.`;
+  }
+  if (has(q, "who owns", "owner", "my name", "who am i", "sunana", "wanene ni", "mai shago")) {
+    return b.owner
+      ? ha ? `Mai kasuwancin shine ${b.owner}.` : `The business owner is ${b.owner}.`
+      : ha ? "Ba a saita sunan mai shago ba — ka iya ƙara shi a Saituna." : "No owner name is set yet — you can add it in Settings.";
+  }
+  if (has(q, "phone", "contact", "reach me", "lambar waya", "wayata")) {
+    return b.phone
+      ? ha ? `Lambar wayar kasuwanci: ${b.phone}.` : `Your business phone is ${b.phone}.`
+      : ha ? "Ba a saita lambar waya ba — ƙara ta a Saituna." : "No business phone is set — add it in Settings.";
+  }
+  if (has(q, "where", "location", "market", "which state", "my state", "address", "ina kasuwa", "wuri", "jiha")) {
+    const parts = [b.market, b.lga, b.state].filter(Boolean).join(", ");
+    return parts
+      ? ha ? `Kasuwancinka yana: ${parts}.` : `Your business is located at ${parts}.`
+      : ha ? "Ba a saita wuri ba — ƙara shi a Saituna." : "No location is set — add it in Settings.";
+  }
+  if (has(q, "category", "kind of business", "type of business", "what do i sell", "rukunin kasuwanci", "nau'in kasuwanci")) {
+    return b.category
+      ? ha ? `Rukunin kasuwancinka: ${b.category}.` : `Your business category is ${b.category}.`
+      : ha ? "Ba a saita rukuni ba — ƙara shi a Saituna." : "No category is set — add it in Settings.";
+  }
+  if (has(q, "currency", "kuɗi na", "wace kuɗi")) {
+    return ha ? `Kuɗin da kake amfani: ${b.name} yana amfani da ${s.currency}.` : `Your business uses ${s.currency}.`;
+  }
 
   // Who owes me money / debts list
   if (has(q, "owe", "owes", "owing", "debtor", "bashi", "bin ni", "wa ke bin")) {
@@ -131,8 +172,8 @@ export function answerQuestion(question: string, s: AssistantSnapshot, lang: Lan
 
   // Fallback / help
   return ha
-    ? "Zan iya amsa tambayoyi game da kasuwancinka, misali: Wa ke bin ni bashi? Nawa na sayar yau? Wane kaya ya fi sayuwa? Wanene babban abokin cinikina?"
-    : "I can answer questions about your business — try: “Who owes me money?”, “How much did I sell today?”, “Which product sells the most?”, or “What should I improve?”";
+    ? `Zan iya amsa tambayoyi game da kasuwancin ${b.name} — misali: Sunan kasuwancina? Wa ke bin ni bashi? Nawa na sayar yau? Ribata nawa? Wane kaya ya fi sayuwa? Ina kasuwata?`
+    : `I can answer questions about ${b.name} — try: “What's my business name?”, “Who owes me money?”, “How much did I sell today?”, “What's my profit?”, “Which product sells the most?”, or “Where is my business?”`;
 }
 
 export const SUGGESTED_QUESTIONS: Record<Lang, string[]> = {

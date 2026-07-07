@@ -64,6 +64,16 @@ export default async function AssistantPage() {
     topCustomer: top ? { name: top.name, total: top.total } : null,
     bestProduct: best ? { name: best.name, qty: best.qty, revenue: best.revenue } : null,
     recommendations: recommendations(stats, sales),
+    business: {
+      name: business.business_name,
+      owner: business.owner_name,
+      phone: business.phone,
+      email: business.email,
+      category: business.business_category,
+      market: business.market_location,
+      state: business.state,
+      lga: business.lga,
+    },
   };
 
   return <AssistantChat snapshot={snapshot} />;

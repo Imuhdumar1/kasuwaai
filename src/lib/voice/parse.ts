@@ -138,49 +138,75 @@ export function parseTransaction(raw: string, ctx: ParseContext): ParsedSale {
   }
 
   // ── Quantity + product ──
+  const synonyms: Record<string, string> = { shinkafa: "rice", sukari: "sugar", mai: "oil", gari: "garri", masara: "maize" };
+  const hasWord = (w: string) => new RegExp(`\\b${w.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`, "i").test(text);
+
   let quantity = 1;
   let productName = "";
   let productId: string | null = null;
-
-  // Hausa first: "bags uku na shinkafa"  (unit qty na product)
-  let m = text.match(new RegExp(`\\b(?:${UNIT_WORDS.join("|")})\\s+([\\w'ɗ]+)\\s+na\\s+([\\w'ɗ]+)`, "i"));
-  // English: "<qty> bags of rice"  (qty unit of product)
-  if (!m) m = text.match(new RegExp(`\\b([\\w'ɗ]+)\\s+(?:${UNIT_WORDS.join("|")})\\s+(?:of\\s+)?([\\w'ɗ]+)`, "i"));
-  if (m) {
-    quantity = numberFromSpan(m[1]) || 1;
-    productName = m[2];
-  } else {
-    // Fallback: a small number followed by a word.
-    const q = text.match(/\b([\w'ɗ]+)\s+([\w'ɗ]+)/);
-    if (q && NUMBER_WORD(q[1].toLowerCase())) {
-      quantity = numberFromSpan(q[1]) || 1;
-      productName = q[2];
-    }
-  }
-
-  // Map product name to a known product (synonyms: shinkafa = rice).
-  const synonyms: Record<string, string> = { shinkafa: "rice", sukari: "sugar", mai: "oil", gari: "garri" };
-  const pnLower = productName.toLowerCase();
-  const searchName = synonyms[pnLower] ?? pnLower;
   let unit = "unit";
   let unitPrice = 0;
   let costPrice = 0;
-  const known = ctx.products.find(
-    (p) => p.name.toLowerCase().includes(searchName) || (pnLower && p.name.toLowerCase().includes(pnLower)),
+
+  // (A) Quantity + product from a unit phrase ("3 bags of rice" / "bags uku na shinkafa").
+  let unitPhraseProduct = "";
+  let m = text.match(new RegExp(`\\b(?:${UNIT_WORDS.join("|")})\\s+([\\w'ɗ]+)\\s+na\\s+([\\w'ɗ]+)`, "i"));
+  if (!m) m = text.match(new RegExp(`\\b([\\w'ɗ]+)\\s+(?:${UNIT_WORDS.join("|")})\\s+(?:of\\s+)?([\\w'ɗ]+)`, "i"));
+  if (m) {
+    quantity = numberFromSpan(m[1]) || 1;
+    unitPhraseProduct = m[2];
+  }
+
+  // (B) Prefer a known product mentioned ANYWHERE in the sentence (most reliable —
+  //     works even without a unit word, e.g. "sold rice to Musa for 5000").
+  let known = ctx.products.find((p) =>
+    p.name
+      .toLowerCase()
+      .split(/[^a-zɗ0-9]+/i)
+      .filter((w) => w.length >= 3)
+      .some(hasWord),
   );
+  if (!known) {
+    for (const [ha, en] of Object.entries(synonyms)) {
+      if (hasWord(ha)) {
+        known = ctx.products.find((p) => p.name.toLowerCase().includes(en));
+        if (known) break;
+      }
+    }
+  }
+
   if (known) {
     productId = known.id;
     productName = known.name;
     unit = known.unit;
     costPrice = known.cost_price;
     unitPrice = known.selling_price;
-  } else if (productName) {
-    productName = titleCase(productName);
+  } else if (unitPhraseProduct) {
+    productName = titleCase(synonyms[unitPhraseProduct.toLowerCase()] ?? unitPhraseProduct);
+  } else {
+    // (C) Fallback: a noun that isn't a stopword / number / unit / the customer name.
+    const stop = new Set([
+      ...UNIT_WORDS, "to", "for", "and", "the", "of", "he", "she", "paid", "naira", "at", "on",
+      "sold", "sell", "bought", "buy", "sayi", "sai", "biya", "ya", "ta", "na", "was", "with",
+    ]);
+    const custFirst = (customerName ?? "").split(/\s+/)[0].toLowerCase();
+    const cand = text
+      .split(/[^A-Za-zɗ']+/)
+      .filter(Boolean)
+      .find((w) => w.length >= 3 && !NUMBER_WORD(w.toLowerCase()) && !stop.has(w.toLowerCase()) && w.toLowerCase() !== custFirst);
+    if (cand) productName = titleCase(synonyms[cand.toLowerCase()] ?? cand);
   }
 
-  // If a total was stated, derive unit price from it (overrides catalogue price).
+  // If a total was stated, derive unit price from it; else use the catalogue price.
   if (total > 0 && quantity > 0) unitPrice = Math.round((total / quantity) * 100) / 100;
   else if (unitPrice > 0) total = unitPrice * quantity;
+
+  // Never leave the form empty: if we heard an amount but couldn't name a product,
+  // add a generic line the user can rename.
+  if (!productName && (total > 0 || amountPaid > 0)) {
+    productName = "Item";
+    if (total > 0 && unitPrice === 0) unitPrice = total;
+  }
 
   const items: ParsedItem[] = productName
     ? [{ productId, name: productName, quantity, unit, unitPrice, costPrice }]
