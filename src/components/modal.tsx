@@ -50,8 +50,11 @@ export function Modal({
         role="dialog"
         aria-modal="true"
         className={cn(
-          "relative z-10 flex max-h-[88vh] w-full flex-col overflow-hidden rounded-t-2xl border border-line bg-surface shadow-soft",
-          "sm:max-h-[calc(100vh_-_2.5rem)] sm:rounded-2xl",
+          // Dynamic viewport height (dvh) so the sheet respects the *visible* area
+          // on mobile (with the address bar shown) — otherwise tall forms push the
+          // Save button below the screen ("bleeding").
+          "relative z-10 flex max-h-[88dvh] w-full flex-col overflow-hidden rounded-t-2xl border border-line bg-surface shadow-soft",
+          "sm:max-h-[calc(100dvh_-_2.5rem)] sm:rounded-2xl",
           sizeClass,
         )}
       >

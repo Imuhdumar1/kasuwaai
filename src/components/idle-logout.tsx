@@ -19,9 +19,13 @@ export function IdleLogout() {
       if (loggingOut) return;
       loggingOut = true;
       try {
-        await createClient().auth.signOut();
+        // Offline (PWA) still logs out: "local" clears the session from this
+        // device without a network round-trip that would otherwise hang. Online
+        // we use the default (global) so the token is revoked server-side too.
+        const scope = typeof navigator !== "undefined" && !navigator.onLine ? "local" : "global";
+        await createClient().auth.signOut({ scope });
       } catch {
-        /* ignore */
+        /* ignore — redirect below still ends the session locally */
       }
       router.replace("/login?reason=timeout");
       router.refresh();

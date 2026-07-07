@@ -86,10 +86,11 @@ export function SaleDetail({
     if (blob) {
       const file = new File([blob], `receipt-${businessName}.png`, { type: "image/png" });
       const nav = navigator as Navigator & { canShare?: (d: { files?: File[] }) => boolean };
-      // Share the image file itself (Android Chrome, iOS Safari → WhatsApp, etc.)
+      // Share ONLY the image (the receipt already contains every detail). No text
+      // caption/body so nothing extra tags along in WhatsApp/email.
       if (nav.canShare && nav.canShare({ files: [file] }) && navigator.share) {
         try {
-          await navigator.share({ files: [file], title: `${businessName} — receipt`, text });
+          await navigator.share({ files: [file] });
           return;
         } catch {
           /* cancelled — fall through to download */

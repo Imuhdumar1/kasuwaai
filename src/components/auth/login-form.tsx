@@ -12,11 +12,17 @@ export function LoginForm() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [resending, setResending] = useState(false);
+  const [resent, setResent] = useState(false);
+
+  // Supabase says "Email not confirmed" when the account exists but was never verified.
+  const needsConfirm = !!error && /confirm|verif/i.test(error);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
     setError(null);
+    setResent(false);
     const supabase = createClient();
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) {
@@ -26,6 +32,28 @@ export function LoginForm() {
     }
     router.replace("/dashboard");
     router.refresh();
+  }
+
+  async function resendConfirmation() {
+    if (!email) {
+      setError("Enter your email address first, then resend.");
+      return;
+    }
+    setResending(true);
+    setResent(false);
+    const supabase = createClient();
+    const { error } = await supabase.auth.resend({
+      type: "signup",
+      email,
+      options: { emailRedirectTo: `${window.location.origin}/auth/confirm` },
+    });
+    setResending(false);
+    if (error) {
+      setError(error.message);
+      return;
+    }
+    setError(null);
+    setResent(true);
   }
 
   return (
@@ -58,7 +86,25 @@ export function LoginForm() {
         </Field>
 
         {error && (
-          <p className="rounded-lg bg-danger/10 px-3 py-2 text-sm text-danger">{error}</p>
+          <div className="rounded-lg bg-danger/10 px-3 py-2 text-sm text-danger">
+            <p>{error}</p>
+            {needsConfirm && (
+              <button
+                type="button"
+                onClick={resendConfirmation}
+                disabled={resending}
+                className="mt-1.5 font-semibold underline underline-offset-2 hover:opacity-80"
+              >
+                {resending ? "Sending…" : "Resend confirmation email"}
+              </button>
+            )}
+          </div>
+        )}
+
+        {resent && (
+          <p className="rounded-lg bg-success/10 px-3 py-2 text-sm text-success">
+            Confirmation email sent. Check your inbox (and spam) to verify your account.
+          </p>
         )}
 
         <Button type="submit" className="w-full" disabled={loading}>
@@ -73,6 +119,18 @@ export function LoginForm() {
         <Link href="/signup" className="font-medium text-ink underline-offset-4 hover:underline dark:text-lime">
           Create account
         </Link>
+      </div>
+
+      {/* Always-available recovery for the "signed up but never got the email" case. */}
+      <div className="mt-3 border-t border-line pt-3 text-sm">
+        <button
+          type="button"
+          onClick={resendConfirmation}
+          disabled={resending}
+          className="text-content-muted underline-offset-4 hover:text-content hover:underline"
+        >
+          {resending ? "Sending…" : "Didn't get the confirmation email? Resend it"}
+        </button>
       </div>
     </div>
   );
