@@ -104,8 +104,8 @@ export function answerQuestion(question: string, s: AssistantSnapshot, lang: Lan
   if (has(q, "week", "mako", "summar", "takaita", "overview")) {
     if (noData) return notEnough;
     return ha
-      ? `Takaitawar mako: tallace-tallace ${m(s.weekSales)}, an karɓi ${m(s.paymentsReceived)}, sauran bashi ${m(s.outstandingDebt)} (${s.overdueCount} sun wuce lokaci).`
-      : `This week: ${m(s.weekSales)} in sales. Overall you've collected ${m(s.paymentsReceived)} and are owed ${m(s.outstandingDebt)} across ${s.overdueCount} overdue debt(s).`;
+      ? `Takaitawar mako: tallace-tallace ${m(s.weekSales)}. Gaba ɗaya: kuɗin shiga ${m(s.totalRevenue)}, kashe kuɗi ${m(s.totalExpenses)}, ribar gaskiya ${m(s.netProfit)}. An karɓi ${m(s.paymentsReceived)}, ana bin ka ${m(s.outstandingDebt)} (${s.overdueCount} sun wuce lokaci).`
+      : `This week: ${m(s.weekSales)} in sales. Overall: ${m(s.totalRevenue)} revenue, ${m(s.totalExpenses)} expenses, ${m(s.netProfit)} net profit. You've collected ${m(s.paymentsReceived)} and are owed ${m(s.outstandingDebt)} across ${s.overdueCount} overdue debt(s).`;
   }
 
   // Month

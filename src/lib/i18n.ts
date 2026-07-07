@@ -189,6 +189,12 @@ const en: Dict = {
   "debt.confirmSettle": "Mark this debt as fully paid? This records a payment of {amount}.",
   "debt.original": "Original",
   "debt.remaining": "Remaining",
+  "debt.open": "Open",
+  "debt.settled": "Settled",
+  "debt.settledBadge": "Paid",
+  "debt.settledOn": "Settled",
+  "debt.noSettled": "No settled debts yet",
+  "debt.noSettledDesc": "Credit sales you've fully collected will appear here.",
 
   // Payments
   "pay.record": "Record payment",
@@ -370,6 +376,12 @@ const ha: Dict = {
   "debt.settleFull": "Biya duka",
   "debt.confirmSettle": "A rubuta cewa an biya wannan bashi gaba ɗaya? Za a yi rikodin biyan {amount}.",
   "debt.remaining": "Saura",
+  "debt.open": "A buɗe",
+  "debt.settled": "An biya",
+  "debt.settledBadge": "An biya",
+  "debt.settledOn": "An biya",
+  "debt.noSettled": "Babu bashin da aka biya tukuna",
+  "debt.noSettledDesc": "Sayarwar bashi da ka karɓo gaba ɗaya za su bayyana anan.",
 
   "pay.record": "Yi rikodin biya",
   "pay.amount": "Adadin biya",

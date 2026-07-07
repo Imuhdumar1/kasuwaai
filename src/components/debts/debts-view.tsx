@@ -10,9 +10,10 @@ import { StatCard } from "@/components/stat-card";
 import { PaymentForm, type PayableSale } from "@/components/payments/payment-form";
 import { ReminderDialog, type ReminderTarget } from "@/components/debts/reminder-dialog";
 import { useI18n } from "@/components/providers";
-import { formatMoney, relativeDueLabel } from "@/lib/format";
+import { formatMoney, formatDate, relativeDueLabel } from "@/lib/format";
 import { dueBucket } from "@/lib/calc";
 import { recordPayment } from "@/app/(app)/payments/actions";
+import { cn } from "@/lib/utils";
 import type { DueBucket } from "@/lib/reminders";
 
 export type DebtRow = {
@@ -28,6 +29,13 @@ export type DebtRow = {
   due_date: string | null;
 };
 
+export type SettledRow = {
+  id: string;
+  customer_name: string | null;
+  total_amount: number;
+  settled_date: string;
+};
+
 const BUCKET_META: Record<DueBucket, { tone: "danger" | "warning" | "info" | "neutral"; label: string }> = {
   overdue: { tone: "danger", label: "Overdue" },
   today: { tone: "warning", label: "Due today" },
@@ -37,10 +45,12 @@ const BUCKET_META: Record<DueBucket, { tone: "danger" | "warning" | "info" | "ne
 
 export function DebtsView({
   rows,
+  settled,
   currency,
   businessName,
 }: {
   rows: DebtRow[];
+  settled: SettledRow[];
   currency: string;
   businessName: string;
 }) {
@@ -48,6 +58,7 @@ export function DebtsView({
   const router = useRouter();
   const [pending, start] = useTransition();
   const [settlingId, setSettlingId] = useState<string | null>(null);
+  const [view, setView] = useState<"open" | "settled">("open");
   const [filter, setFilter] = useState<"all" | DueBucket>("all");
   const [payFor, setPayFor] = useState<PayableSale | null>(null);
   const [remindFor, setRemindFor] = useState<ReminderTarget | null>(null);
@@ -95,6 +106,56 @@ export function DebtsView({
         <StatCard label="Open debts" value={String(rows.length)} />
       </div>
 
+      {/* Open / Settled tabs */}
+      <div className="mb-4 flex items-center gap-2 border-b border-line">
+        {(["open", "settled"] as const).map((v) => (
+          <button
+            key={v}
+            onClick={() => setView(v)}
+            className={cn(
+              "-mb-px border-b-2 px-3 py-2 text-sm font-medium transition-colors",
+              view === v
+                ? "border-ink text-content"
+                : "border-transparent text-content-muted hover:text-content",
+            )}
+          >
+            {v === "open" ? `${t("debt.open")} (${rows.length})` : `${t("debt.settled")} (${settled.length})`}
+          </button>
+        ))}
+      </div>
+
+      {view === "settled" ? (
+        settled.length === 0 ? (
+          <EmptyState
+            icon={<CheckCircle2 className="h-6 w-6" />}
+            title={t("debt.noSettled")}
+            description={t("debt.noSettledDesc")}
+          />
+        ) : (
+          <Card className="overflow-hidden">
+            <ul className="divide-y divide-line">
+              {settled.map((r) => (
+                <li key={r.id} className="flex flex-wrap items-center gap-3 p-4">
+                  <div className="min-w-0 flex-1">
+                    <Link href={`/sales/${r.id}`} className="font-medium hover:underline">
+                      {r.customer_name ?? t("sale.walkin")}
+                    </Link>
+                    <div className="mt-0.5 flex flex-wrap items-center gap-2 text-xs text-content-muted">
+                      <Badge tone="success">{t("debt.settledBadge")}</Badge>
+                      <span>· {t("debt.settledOn")} {formatDate(r.settled_date)}</span>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-xs text-content-muted">{t("f.total")}</div>
+                    <div className="font-semibold text-success">{formatMoney(r.total_amount, currency)}</div>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </Card>
+        )
+      ) : (
+      <>
       <div className="mb-4 flex justify-end">
         <Select value={filter} onChange={(e) => setFilter(e.target.value as typeof filter)} className="sm:w-48">
           <option value="all">{t("common.all")}</option>
@@ -177,6 +238,8 @@ export function DebtsView({
             })}
           </ul>
         </Card>
+      )}
+      </>
       )}
 
       <PaymentForm open={!!payFor} onClose={() => setPayFor(null)} sale={payFor} currency={currency} />
