@@ -3,8 +3,11 @@
 import { revalidatePath } from "next/cache";
 import { createClient, getBusiness } from "@/lib/supabase/server";
 import { cleanText, cleanNumber } from "@/lib/sanitize";
+import { logActivity } from "@/lib/activity";
 
 export type ActionResult = { ok?: true; error?: string; id?: string };
+
+const actorOf = (b: { owner_name: string | null; email: string | null }) => b.owner_name || b.email || null;
 
 const s = (fd: FormData, k: string, max = 500) => cleanText(fd.get(k), max);
 const n = (fd: FormData, k: string) => cleanNumber(fd.get(k), { min: 0, max: 1e12 });
@@ -41,10 +44,12 @@ export async function saveCustomer(fd: FormData): Promise<ActionResult> {
       .eq("id", id)
       .eq("business_id", business.id);
     if (error) return { error: error.message };
+    await logActivity(business.id, actorOf(business), { action: "update", entityType: "customer", entityId: id, summary: `Edited customer ${full_name}` });
     revalidatePath(`/customers/${id}`);
   } else {
     const { data, error } = await supabase.from("customers").insert(payload).select("id").single();
     if (error) return { error: error.message };
+    await logActivity(business.id, actorOf(business), { action: "create", entityType: "customer", entityId: data?.id, summary: `Added customer ${full_name}` });
     revalidatePath("/customers");
     revalidatePath("/dashboard");
     return { ok: true, id: data?.id };
@@ -73,12 +78,19 @@ export async function deleteCustomer(id: string): Promise<ActionResult> {
   const business = await getBusiness();
   if (!business) return { error: "Not authenticated" };
   const supabase = createClient();
+  const { data: existing } = await supabase
+    .from("customers")
+    .select("full_name")
+    .eq("id", id)
+    .eq("business_id", business.id)
+    .single();
   const { error } = await supabase
     .from("customers")
     .delete()
     .eq("id", id)
     .eq("business_id", business.id);
   if (error) return { error: error.message };
+  await logActivity(business.id, actorOf(business), { action: "delete", entityType: "customer", entityId: id, summary: `Deleted customer ${existing?.full_name ?? ""}`.trim() });
   revalidatePath("/customers");
   revalidatePath("/dashboard");
   return { ok: true };

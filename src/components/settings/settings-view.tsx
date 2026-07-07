@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Building2, SlidersHorizontal, Lock, Database, TriangleAlert, Check } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
@@ -272,17 +272,26 @@ function DataSection({ business }: { business: Business }) {
   const router = useRouter();
   const [exporting, setExporting] = useState(false);
   const [deleting, startDelete] = useTransition();
+  const [lastBackup, setLastBackup] = useState<string | null>(null);
+
+  useEffect(() => {
+    setLastBackup(localStorage.getItem("kasuwa_last_backup"));
+  }, []);
+
+  const daysSince = lastBackup ? Math.floor((Date.now() - new Date(lastBackup).getTime()) / 86_400_000) : null;
+  const staleBackup = daysSince === null || daysSince >= 7;
 
   async function exportAll() {
     setExporting(true);
     const supabase = createClient();
-    const [c, p, s, pay] = await Promise.all([
+    const [c, p, s, pay, exp] = await Promise.all([
       supabase.from("customers").select("*").eq("business_id", business.id),
       supabase.from("products").select("*").eq("business_id", business.id),
       supabase.from("sales").select("*, sale_items(*)").eq("business_id", business.id),
       supabase.from("payments").select("*").eq("business_id", business.id),
+      supabase.from("expenses").select("*").eq("business_id", business.id),
     ]);
-    const data = { business, customers: c.data, products: p.data, sales: s.data, payments: pay.data, exported_at: new Date().toISOString() };
+    const data = { business, customers: c.data, products: p.data, sales: s.data, payments: pay.data, expenses: exp.data, exported_at: new Date().toISOString() };
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -290,6 +299,10 @@ function DataSection({ business }: { business: Business }) {
     a.download = `${business.business_name}-backup.json`;
     a.click();
     URL.revokeObjectURL(url);
+    const now = new Date().toISOString();
+    localStorage.setItem("kasuwa_last_backup", now);
+    setLastBackup(now);
+    toast({ message: t("backup.done"), tone: "success" });
     setExporting(false);
   }
 
@@ -328,6 +341,18 @@ function DataSection({ business }: { business: Business }) {
           <Button variant="outline" onClick={exportCustomersCsv}>
             Export customers (CSV)
           </Button>
+        </div>
+        <div className="mt-3 text-xs">
+          {staleBackup ? (
+            <span className="inline-flex items-center gap-1.5 rounded-lg bg-lime/15 px-2.5 py-1.5 font-medium text-ink dark:text-lime">
+              <TriangleAlert className="h-3.5 w-3.5" />
+              {lastBackup ? t("backup.stale", { days: daysSince ?? 0 }) : t("backup.never")}
+            </span>
+          ) : (
+            <span className="text-content-muted">
+              {daysSince === 0 ? t("backup.today") : t("backup.last", { days: daysSince ?? 0 })}
+            </span>
+          )}
         </div>
       </Section>
 

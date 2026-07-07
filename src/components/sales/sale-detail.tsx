@@ -13,10 +13,19 @@ import { buildReceipt } from "@/lib/receipt";
 import { deleteSale } from "@/app/(app)/sales/actions";
 import type { Sale, SaleItem, Payment } from "@/lib/types";
 
+export type SaleActivity = {
+  id: string;
+  action: string;
+  summary: string;
+  actor: string | null;
+  created_at: string;
+};
+
 export function SaleDetail({
   sale,
   items,
   payments,
+  activity,
   customer,
   currency,
   businessName,
@@ -24,6 +33,7 @@ export function SaleDetail({
   sale: Sale;
   items: SaleItem[];
   payments: Payment[];
+  activity: SaleActivity[];
   customer: { id: string; full_name: string } | null;
   currency: string;
   businessName: string;
@@ -227,6 +237,25 @@ export function SaleDetail({
             <Card className="p-5">
               <div className="text-xs uppercase text-content-muted">{t("f.notes")}</div>
               <p className="mt-1 text-sm">{sale.notes}</p>
+            </Card>
+          )}
+
+          {activity.length > 0 && (
+            <Card>
+              <div className="border-b border-line p-5">
+                <h3 className="font-display font-bold">{t("history.sale")}</h3>
+              </div>
+              <ul className="divide-y divide-line">
+                {activity.map((a) => (
+                  <li key={a.id} className="p-4">
+                    <div className="text-sm">{a.summary}</div>
+                    <div className="mt-0.5 text-xs text-content-muted">
+                      {formatDateTime(a.created_at)}
+                      {a.actor ? ` · ${a.actor}` : ""}
+                    </div>
+                  </li>
+                ))}
+              </ul>
             </Card>
           )}
         </div>

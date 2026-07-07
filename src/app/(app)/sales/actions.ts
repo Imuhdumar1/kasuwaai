@@ -2,8 +2,11 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient, getBusiness } from "@/lib/supabase/server";
+import { logActivity } from "@/lib/activity";
 
 export type ActionResult = { ok?: true; error?: string; id?: string };
+
+const actorOf = (b: { owner_name: string | null; email: string | null }) => b.owner_name || b.email || null;
 
 export type SaleItemInput = {
   product_id: string | null;
@@ -97,6 +100,13 @@ export async function createSale(input: SaleInput): Promise<ActionResult> {
     if (payErr) return { error: payErr.message };
   }
 
+  await logActivity(business.id, actorOf(business), {
+    action: "create",
+    entityType: "sale",
+    entityId: saleId,
+    summary: `Recorded sale — ${business.currency} ${total}${input.source === "voice" ? " (voice)" : ""}`,
+  });
+
   revalidatePath("/sales");
   revalidatePath("/dashboard");
   revalidatePath("/debts");
@@ -109,8 +119,20 @@ export async function deleteSale(id: string): Promise<ActionResult> {
   const business = await getBusiness();
   if (!business) return { error: "Not authenticated" };
   const supabase = createClient();
+  const { data: existing } = await supabase
+    .from("sales")
+    .select("total_amount")
+    .eq("id", id)
+    .eq("business_id", business.id)
+    .single();
   const { error } = await supabase.from("sales").delete().eq("id", id).eq("business_id", business.id);
   if (error) return { error: error.message };
+  await logActivity(business.id, actorOf(business), {
+    action: "delete",
+    entityType: "sale",
+    entityId: id,
+    summary: existing ? `Deleted sale — ${business.currency} ${existing.total_amount}` : "Deleted a sale",
+  });
   revalidatePath("/sales");
   revalidatePath("/dashboard");
   revalidatePath("/debts");

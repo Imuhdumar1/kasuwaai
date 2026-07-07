@@ -3,8 +3,11 @@
 import { revalidatePath } from "next/cache";
 import { createClient, getBusiness } from "@/lib/supabase/server";
 import { cleanText, cleanNumber } from "@/lib/sanitize";
+import { logActivity } from "@/lib/activity";
 
 export type ActionResult = { ok?: true; error?: string; id?: string };
+
+const actorOf = (b: { owner_name: string | null; email: string | null }) => b.owner_name || b.email || null;
 
 const s = (fd: FormData, k: string, max = 500) => cleanText(fd.get(k), max);
 const n = (fd: FormData, k: string) => cleanNumber(fd.get(k), { min: 0, max: 1e12 });
@@ -38,9 +41,11 @@ export async function saveProduct(fd: FormData): Promise<ActionResult> {
       .eq("id", id)
       .eq("business_id", business.id);
     if (error) return { error: error.message };
+    await logActivity(business.id, actorOf(business), { action: "update", entityType: "product", entityId: id, summary: `Edited product ${name}` });
   } else {
     const { data, error } = await supabase.from("products").insert(payload).select("id").single();
     if (error) return { error: error.message };
+    await logActivity(business.id, actorOf(business), { action: "create", entityType: "product", entityId: data?.id, summary: `Added product ${name}` });
     revalidatePath("/products");
     return { ok: true, id: data?.id };
   }
@@ -67,8 +72,15 @@ export async function deleteProduct(id: string): Promise<ActionResult> {
   const business = await getBusiness();
   if (!business) return { error: "Not authenticated" };
   const supabase = createClient();
+  const { data: existing } = await supabase
+    .from("products")
+    .select("name")
+    .eq("id", id)
+    .eq("business_id", business.id)
+    .single();
   const { error } = await supabase.from("products").delete().eq("id", id).eq("business_id", business.id);
   if (error) return { error: error.message };
+  await logActivity(business.id, actorOf(business), { action: "delete", entityType: "product", entityId: id, summary: `Deleted product ${existing?.name ?? ""}`.trim() });
   revalidatePath("/products");
   return { ok: true };
 }

@@ -13,6 +13,7 @@ import {
   Wallet,
   Sparkles,
   BarChart3,
+  History,
   Settings,
   LogOut,
   Menu,
@@ -38,6 +39,7 @@ const NAV: { href: string; icon: React.ElementType; key: string }[] = [
   { href: "/expenses", icon: Wallet, key: "nav.expenses" },
   { href: "/assistant", icon: Sparkles, key: "nav.assistant" },
   { href: "/reports", icon: BarChart3, key: "nav.reports" },
+  { href: "/history", icon: History, key: "nav.history" },
   { href: "/settings", icon: Settings, key: "nav.settings" },
 ];
 
