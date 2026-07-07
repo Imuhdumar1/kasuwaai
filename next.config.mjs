@@ -3,9 +3,8 @@ import { withSentryConfig } from "@sentry/nextjs";
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
 
 // Built from the app's real origins: self, Google Fonts, Supabase (API + realtime),
-// and Sentry ingest. Shipped as Report-Only first (see headers below).
-// TODO: after verifying no legitimate violations are reported, switch the header
-// key to "Content-Security-Policy" to enforce it.
+// and Sentry ingest. Now ENFORCED (the app talks to no other origins — no
+// analytics/third-party scripts — so enforcing can't break legitimate traffic).
 const csp = [
   "default-src 'self'",
   "base-uri 'self'",
@@ -29,14 +28,19 @@ const nextConfig = {
       {
         source: "/(.*)",
         headers: [
-          // CSP starts in Report-Only so it can't break the app; flip the key to
-          // "Content-Security-Policy" once reports confirm nothing legitimate is blocked.
-          { key: "Content-Security-Policy-Report-Only", value: csp },
+          // Enforced Content Security Policy.
+          { key: "Content-Security-Policy", value: csp },
           { key: "X-Frame-Options", value: "DENY" },
           { key: "X-Content-Type-Options", value: "nosniff" },
           { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
           // The app uses the microphone for voice sales; camera/geolocation are denied.
           { key: "Permissions-Policy", value: "camera=(), geolocation=(), microphone=(self), payment=()" },
+          // Cross-origin isolation: keep our top-level window in its own group
+          // (allow-popups so target=_blank WhatsApp/SMS links still work).
+          { key: "Cross-Origin-Opener-Policy", value: "same-origin-allow-popups" },
+          // Don't leak URLs to DNS prefetch, and deny legacy Flash/PDF cross-domain access.
+          { key: "X-DNS-Prefetch-Control", value: "off" },
+          { key: "X-Permitted-Cross-Domain-Policies", value: "none" },
         ],
       },
     ];
