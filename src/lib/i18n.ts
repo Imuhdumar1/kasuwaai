@@ -38,6 +38,7 @@ const en: Dict = {
   "common.undo": "Undo",
   "common.sure": "Are you sure?",
   "toast.deleted": "Deleted",
+  "pwa.offline": "You're offline",
   "confirm.deleteCustomer": "Delete {name}? This cannot be undone.",
   "confirm.deleteProduct": "Delete {name}? This cannot be undone.",
   "confirm.deleteSale": "Delete this sale and its payments? This cannot be undone.",
@@ -214,6 +215,9 @@ const en: Dict = {
   "pay.subtitle": "Money received from customers.",
   "pay.for": "For",
   "pay.overpay": "Payment cannot be more than the balance.",
+  "pay.pickDebt": "Choose a debt to record a payment against.",
+  "pay.noOpenDebts": "No open debts",
+  "pay.noOpenDebtsDesc": "You have no unpaid sales to record a payment against.",
 
   // Expenses
   "exp.add": "Add expense",
@@ -255,6 +259,7 @@ const ha: Dict = {
   "common.undo": "Janye",
   "common.sure": "Ka tabbata?",
   "toast.deleted": "An share",
+  "pwa.offline": "Ba ka da yanar gizo",
   "confirm.deleteCustomer": "A share {name}? Ba za a iya dawo da shi ba.",
   "confirm.deleteProduct": "A share {name}? Ba za a iya dawo da shi ba.",
   "confirm.deleteSale": "A share wannan sayarwa da biyanta? Ba za a iya dawo da shi ba.",
@@ -408,6 +413,9 @@ const ha: Dict = {
   "pay.date": "Ranar biya",
   "pay.subtitle": "Kuɗin da aka karɓa daga abokan ciniki.",
   "pay.overpay": "Biya ba zai iya wuce sauran bashi ba.",
+  "pay.pickDebt": "Zaɓi bashin da za a yi rikodin biya a kansa.",
+  "pay.noOpenDebts": "Babu bashin da ba a biya ba",
+  "pay.noOpenDebtsDesc": "Babu sayarwar da ba a biya ba da za a yi rikodin biya a kanta.",
 
   "exp.add": "Ƙara kashe kuɗi",
   "exp.edit": "Gyara kashe kuɗi",

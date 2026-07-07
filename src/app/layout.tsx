@@ -1,11 +1,21 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { Providers } from "@/components/providers";
+import { PWA } from "@/components/pwa";
 
 export const metadata: Metadata = {
   title: "KasuwaAI — Business, Sales & Debt Tracking",
   description:
     "AI-powered sales recording and debt tracking for traders, shop owners, and SMEs. Record sales by voice in English or Hausa, track debts, and manage your business.",
+  manifest: "/manifest.webmanifest",
+  appleWebApp: { capable: true, title: "KasuwaAI", statusBarStyle: "default" },
+};
+
+export const viewport: Viewport = {
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#f5f2eb" },
+    { media: "(prefers-color-scheme: dark)", color: "#0f0e0c" },
+  ],
 };
 
 export default function RootLayout({
@@ -22,7 +32,10 @@ export default function RootLayout({
         />
       </head>
       <body>
-        <Providers>{children}</Providers>
+        <Providers>
+          <PWA />
+          {children}
+        </Providers>
       </body>
     </html>
   );

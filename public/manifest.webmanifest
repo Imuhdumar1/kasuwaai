@@ -1,0 +1,21 @@
+{
+  "name": "KasuwaAI — Sales & Debt Tracking",
+  "short_name": "KasuwaAI",
+  "description": "Record sales by voice in English or Hausa, track debts and payments, and manage your business — offline-ready.",
+  "start_url": "/dashboard",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#f5f2eb",
+  "theme_color": "#f5f2eb",
+  "lang": "en",
+  "categories": ["business", "finance", "productivity"],
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
