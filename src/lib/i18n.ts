@@ -183,7 +183,10 @@ const en: Dict = {
   // Debts
   "debt.subtitle": "Who owes you, how much, and when it's due.",
   "debt.due": "Due",
+  "debt.remind": "Remind",
   "debt.settle": "Record payment",
+  "debt.settleFull": "Settle",
+  "debt.confirmSettle": "Mark this debt as fully paid? This records a payment of {amount}.",
   "debt.original": "Original",
   "debt.remaining": "Remaining",
 
@@ -362,7 +365,10 @@ const ha: Dict = {
 
   "debt.subtitle": "Wa ke bin ka bashi, nawa, da yaushe.",
   "debt.due": "Ranar biya",
+  "debt.remind": "Tuni",
   "debt.settle": "Yi rikodin biya",
+  "debt.settleFull": "Biya duka",
+  "debt.confirmSettle": "A rubuta cewa an biya wannan bashi gaba ɗaya? Za a yi rikodin biyan {amount}.",
   "debt.remaining": "Saura",
 
   "pay.record": "Yi rikodin biya",

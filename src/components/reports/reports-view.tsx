@@ -30,6 +30,13 @@ export type ReportPayment = {
   method: string | null;
   reference_number: string | null;
 };
+export type ReportExpense = {
+  id: string;
+  expense_date: string;
+  category: string | null;
+  description: string | null;
+  amount: number;
+};
 
 type ReportType =
   | "sales"
@@ -37,6 +44,7 @@ type ReportType =
   | "profit"
   | "debts"
   | "payments"
+  | "expenses"
   | "products"
   | "customers"
   | "summary";
@@ -50,6 +58,7 @@ const REPORT_TYPES: { value: ReportType; label: string }[] = [
   { value: "profit", label: "Profit report" },
   { value: "debts", label: "Debt report" },
   { value: "payments", label: "Payment report" },
+  { value: "expenses", label: "Expense report" },
   { value: "products", label: "Product report" },
   { value: "customers", label: "Customer report" },
   { value: "summary", label: "Business summary" },
@@ -61,12 +70,19 @@ const MONEY_COLS: Record<ReportType, number[]> = {
   profit: [2, 3, 4],
   debts: [2, 3, 4],
   payments: [2],
+  expenses: [3],
   products: [2, 3],
   customers: [2, 3],
   summary: [],
 };
 
-function computeReport(type: ReportType, fSales: ReportSale[], fPayments: ReportPayment[], currency: string): ReportResult {
+function computeReport(
+  type: ReportType,
+  fSales: ReportSale[],
+  fPayments: ReportPayment[],
+  fExpenses: ReportExpense[],
+  currency: string,
+): ReportResult {
   const money = (n: number) => formatMoney(n, currency);
   switch (type) {
     case "sales": {
@@ -128,6 +144,12 @@ function computeReport(type: ReportType, fSales: ReportSale[], fPayments: Report
       const total = fPayments.reduce((a, p) => a + p.amount, 0);
       return { headers, rows, summary: [{ label: "Payments", value: String(fPayments.length) }, { label: "Total received", value: money(total) }] };
     }
+    case "expenses": {
+      const headers = ["Date", "Category", "Description", "Amount"];
+      const rows = fExpenses.map((e) => [formatDate(e.expense_date), e.category ?? "—", e.description ?? "—", e.amount]);
+      const total = fExpenses.reduce((a, e) => a + e.amount, 0);
+      return { headers, rows, summary: [{ label: "Entries", value: String(fExpenses.length) }, { label: "Total expenses", value: money(total) }] };
+    }
     case "products": {
       const map = new Map<string, { qty: number; revenue: number; cost: number }>();
       for (const s of fSales)
@@ -161,6 +183,8 @@ function computeReport(type: ReportType, fSales: ReportSale[], fPayments: Report
     case "summary": {
       const totalRev = fSales.reduce((a, s) => a + s.total_amount, 0);
       const totalProfit = fSales.reduce((a, s) => a + s.profit, 0);
+      const totalExpenses = fExpenses.reduce((a, e) => a + e.amount, 0);
+      const netProfit = totalProfit - totalExpenses;
       const paid = fPayments.reduce((a, p) => a + p.amount, 0);
       const outstanding = fSales.reduce((a, s) => a + s.outstanding_balance, 0);
       const openDebts = fSales.filter((s) => s.outstanding_balance > 0).length;
@@ -171,15 +195,17 @@ function computeReport(type: ReportType, fSales: ReportSale[], fPayments: Report
       const rows: Row[] = [
         ["Transactions", String(fSales.length)],
         ["Total sales", money(totalRev)],
-        ["Total profit", money(totalProfit)],
+        ["Gross profit", money(totalProfit)],
         ["Profit margin", `${margin}%`],
+        ["Total expenses", money(totalExpenses)],
+        ["Net profit", money(netProfit)],
         ["Payments received", money(paid)],
         ["Outstanding debt", money(outstanding)],
         ["Open debts", String(openDebts)],
         ["Average sale", money(avg)],
         ["Customers", String(custs)],
       ];
-      return { headers, rows, summary: [{ label: "Total sales", value: money(totalRev) }, { label: "Total profit", value: money(totalProfit) }, { label: "Outstanding", value: money(outstanding) }] };
+      return { headers, rows, summary: [{ label: "Total sales", value: money(totalRev) }, { label: "Net profit", value: money(netProfit) }, { label: "Outstanding", value: money(outstanding) }] };
     }
   }
 }
@@ -194,11 +220,13 @@ function exportRows(type: ReportType, rows: Row[], currency: string): Row[] {
 export function ReportsView({
   sales,
   payments,
+  expenses,
   currency,
   businessName,
 }: {
   sales: ReportSale[];
   payments: ReportPayment[];
+  expenses: ReportExpense[];
   currency: string;
   businessName: string;
 }) {
@@ -217,9 +245,10 @@ export function ReportsView({
   const inRange = (d: string) => new Date(d).getTime() >= from.getTime();
   const fSales = useMemo(() => sales.filter((s) => inRange(s.sale_date)), [sales, from]);
   const fPayments = useMemo(() => payments.filter((p) => inRange(p.payment_date)), [payments, from]);
+  const fExpenses = useMemo(() => expenses.filter((e) => inRange(e.expense_date)), [expenses, from]);
 
   const money = (n: number) => formatMoney(n, currency);
-  const report = useMemo(() => computeReport(type, fSales, fPayments, currency), [type, fSales, fPayments, currency]);
+  const report = useMemo(() => computeReport(type, fSales, fPayments, fExpenses, currency), [type, fSales, fPayments, fExpenses, currency]);
 
   const fileBase = `${businessName}-${type}-${range}`;
   const reportTitle = `${businessName} — ${type} report (${range})`;
@@ -238,7 +267,7 @@ export function ReportsView({
 
   const allSections = () =>
     REPORT_TYPES.map((rt) => {
-      const r = computeReport(rt.value, fSales, fPayments, currency);
+      const r = computeReport(rt.value, fSales, fPayments, fExpenses, currency);
       return { title: rt.label, headers: r.headers, rows: exportRows(rt.value, r.rows, currency) };
     });
   const allFile = `${businessName}-all-reports-${range}`;

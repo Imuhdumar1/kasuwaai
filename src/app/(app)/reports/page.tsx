@@ -1,5 +1,5 @@
 import { createClient, getBusiness } from "@/lib/supabase/server";
-import { ReportsView, type ReportSale, type ReportPayment } from "@/components/reports/reports-view";
+import { ReportsView, type ReportSale, type ReportPayment, type ReportExpense } from "@/components/reports/reports-view";
 
 export const dynamic = "force-dynamic";
 
@@ -12,7 +12,7 @@ export default async function ReportsPage() {
   const business = (await getBusiness())!;
   const supabase = createClient();
 
-  const [salesRes, paymentsRes] = await Promise.all([
+  const [salesRes, paymentsRes, expensesRes] = await Promise.all([
     supabase
       .from("sales")
       .select("id, sale_date, total_amount, amount_paid, outstanding_balance, status, due_date, profit, customer:customers(full_name), sale_items(product_name, quantity, line_total, cost_price)")
@@ -23,6 +23,11 @@ export default async function ReportsPage() {
       .select("id, payment_date, amount, method, reference_number, customer:customers(full_name)")
       .eq("business_id", business.id)
       .order("payment_date", { ascending: false }),
+    supabase
+      .from("expenses")
+      .select("id, expense_date, amount, category, description")
+      .eq("business_id", business.id)
+      .order("expense_date", { ascending: false }),
   ]);
 
   const sales: ReportSale[] = (salesRes.data ?? []).map((s) => ({
@@ -47,5 +52,13 @@ export default async function ReportsPage() {
     reference_number: p.reference_number,
   }));
 
-  return <ReportsView sales={sales} payments={payments} currency={business.currency} businessName={business.business_name} />;
+  const expenses: ReportExpense[] = (expensesRes.data ?? []).map((e) => ({
+    id: e.id,
+    expense_date: e.expense_date,
+    category: e.category,
+    description: e.description,
+    amount: e.amount,
+  }));
+
+  return <ReportsView sales={sales} payments={payments} expenses={expenses} currency={business.currency} businessName={business.business_name} />;
 }

@@ -1,16 +1,18 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Receipt, CreditCard, AlertTriangle, Bell } from "lucide-react";
+import { Receipt, CreditCard, AlertTriangle, Bell, CheckCircle2 } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
-import { Badge, Button, Card, EmptyState, Select } from "@/components/ui";
+import { Badge, Button, Card, EmptyState, Select, Spinner } from "@/components/ui";
 import { StatCard } from "@/components/stat-card";
 import { PaymentForm, type PayableSale } from "@/components/payments/payment-form";
 import { ReminderDialog, type ReminderTarget } from "@/components/debts/reminder-dialog";
 import { useI18n } from "@/components/providers";
 import { formatMoney, relativeDueLabel } from "@/lib/format";
 import { dueBucket } from "@/lib/calc";
+import { recordPayment } from "@/app/(app)/payments/actions";
 import type { DueBucket } from "@/lib/reminders";
 
 export type DebtRow = {
@@ -43,9 +45,35 @@ export function DebtsView({
   businessName: string;
 }) {
   const { t } = useI18n();
+  const router = useRouter();
+  const [pending, start] = useTransition();
+  const [settlingId, setSettlingId] = useState<string | null>(null);
   const [filter, setFilter] = useState<"all" | DueBucket>("all");
   const [payFor, setPayFor] = useState<PayableSale | null>(null);
   const [remindFor, setRemindFor] = useState<ReminderTarget | null>(null);
+
+  // One-click: record a payment for the full outstanding balance (debt fully paid).
+  function settleInFull(r: DebtRow) {
+    const msg = t("debt.confirmSettle", { amount: formatMoney(r.outstanding_balance, currency) });
+    if (!confirm(msg)) return;
+    setSettlingId(r.id);
+    start(async () => {
+      const res = await recordPayment({
+        sale_id: r.id,
+        amount: r.outstanding_balance,
+        method: "Cash",
+        reference_number: null,
+        payment_date: new Date().toISOString(),
+        notes: "Settled in full",
+      });
+      setSettlingId(null);
+      if (res.error) {
+        alert(res.error);
+        return;
+      }
+      router.refresh();
+    });
+  }
 
   const withBucket = useMemo(() => rows.map((r) => ({ ...r, bucket: dueBucket(r) })), [rows]);
 
@@ -103,7 +131,7 @@ export function DebtsView({
                     <div className="text-xs text-content-muted">{t("debt.remaining")}</div>
                     <div className="font-semibold text-danger">{formatMoney(r.outstanding_balance, currency)}</div>
                   </div>
-                  <div className="flex w-full gap-2 sm:w-auto">
+                  <div className="flex w-full flex-wrap gap-2 sm:w-auto">
                     <Button
                       variant="outline"
                       size="sm"
@@ -119,9 +147,10 @@ export function DebtsView({
                         })
                       }
                     >
-                      <Bell className="h-4 w-4" /> Remind
+                      <Bell className="h-4 w-4" /> {t("debt.remind")}
                     </Button>
                     <Button
+                      variant="outline"
                       size="sm"
                       className="flex-1 sm:flex-none"
                       onClick={() =>
@@ -133,6 +162,14 @@ export function DebtsView({
                       }
                     >
                       <CreditCard className="h-4 w-4" /> {t("debt.settle")}
+                    </Button>
+                    <Button
+                      size="sm"
+                      className="flex-1 sm:flex-none"
+                      disabled={pending && settlingId === r.id}
+                      onClick={() => settleInFull(r)}
+                    >
+                      {pending && settlingId === r.id ? <Spinner /> : <CheckCircle2 className="h-4 w-4" />} {t("debt.settleFull")}
                     </Button>
                   </div>
                 </li>
