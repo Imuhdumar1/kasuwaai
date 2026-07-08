@@ -120,18 +120,6 @@ export function LoginForm() {
           Create account
         </Link>
       </div>
-
-      {/* Always-available recovery for the "signed up but never got the email" case. */}
-      <div className="mt-3 border-t border-line pt-3 text-sm">
-        <button
-          type="button"
-          onClick={resendConfirmation}
-          disabled={resending}
-          className="text-content-muted underline-offset-4 hover:text-content hover:underline"
-        >
-          {resending ? "Sending…" : "Didn't get the confirmation email? Resend it"}
-        </button>
-      </div>
     </div>
   );
 }

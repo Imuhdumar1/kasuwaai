@@ -74,6 +74,18 @@ export function AppShell({ business, children }: { business: Business; children:
 function SidebarContent({ business, onNavigate }: { business: Business; onNavigate: () => void }) {
   const pathname = usePathname();
   const { t } = useI18n();
+  const router = useRouter();
+
+  async function logout() {
+    onNavigate();
+    try {
+      await createClient().auth.signOut();
+    } catch {
+      /* offline — clear locally and redirect anyway */
+    }
+    router.replace("/login");
+    router.refresh();
+  }
 
   return (
     <>
@@ -111,6 +123,13 @@ function SidebarContent({ business, onNavigate }: { business: Business; onNaviga
             </div>
           </div>
         </div>
+        <button
+          onClick={logout}
+          className="mt-1 flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-content-muted transition-colors hover:bg-surface-2 hover:text-danger"
+        >
+          <LogOut className="h-[18px] w-[18px] shrink-0" />
+          {t("nav.logout")}
+        </button>
       </div>
     </>
   );
